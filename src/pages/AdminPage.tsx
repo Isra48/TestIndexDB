@@ -1,14 +1,13 @@
 import { FormEvent, useMemo, useState } from 'react';
 import {
   clearDatabase,
-  expandGifts,
   parseGiftsCsv,
   parseParticipantsCsv,
   presortWinners,
   saveWinners,
   winnersToCSV,
 } from '../utils/indexedDb';
-import { Participant, RawGift, Winner } from '../types';
+import { Gift, Participant, Winner } from '../types';
 
 const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'Admin';
@@ -19,7 +18,7 @@ function AdminPage() {
   const [password, setPassword] = useState('');
 
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [gifts, setGifts] = useState<RawGift[]>([]);
+  const [gifts, setGifts] = useState<Gift[]>([]);
   const [winners, setWinners] = useState<Winner[]>([]);
 
   const [status, setStatus] = useState('');
@@ -39,8 +38,8 @@ function AdminPage() {
     }
   };
 
-  const readFile = (file: File, parser: (text: string) => Participant[] | RawGift[]) => {
-    return new Promise<Participant[] | RawGift[]>((resolve, reject) => {
+  const readFile = (file: File, parser: (text: string) => Participant[] | Gift[]) => {
+    return new Promise<Participant[] | Gift[]>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const text = reader.result?.toString() ?? '';
@@ -69,7 +68,7 @@ function AdminPage() {
     setStatus('Cargando premios...');
     setError('');
     try {
-      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as RawGift[];
+      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as Gift[];
       setGifts(parsed);
       setStatus(`Premios cargados: ${parsed.length}`);
     } catch (err) {
@@ -96,8 +95,7 @@ function AdminPage() {
     setError('');
     setStatus('Generando ganadores...');
     try {
-      const expanded = expandGifts(gifts);
-      const generated = presortWinners(participants, expanded);
+      const generated = presortWinners(participants, gifts);
       setWinners(generated);
       setStatus('Ganadores listos. Guarda para exportar y persistir.');
     } catch (err) {
@@ -185,7 +183,7 @@ function AdminPage() {
           </div>
           <div className="dropzone">
             <h3>Premios</h3>
-            <p>CSV con columnas: categoría, producto, uds.</p>
+            <p>CSV con columnas: categoría, premio.</p>
             <input type="file" accept=".csv,text/csv" onChange={(e) => handleGiftsUpload(e.target.files)} />
             <p className="hint">Cargados: {gifts.length}</p>
           </div>

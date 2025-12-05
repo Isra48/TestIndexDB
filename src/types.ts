@@ -9,12 +9,6 @@ export type Gift = {
   prize: string;
 };
 
-export type RawGift = {
-  category: string;
-  prize: string;
-  uds: number;
-};
-
 export type Winner = {
   id: string;
   participant: Participant;

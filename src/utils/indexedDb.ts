@@ -1,4 +1,4 @@
-import { Gift, Participant, RawGift, Winner } from '../types';
+import { Gift, Participant, Winner } from '../types';
 
 const DB_NAME = 'giftRaffleDB';
 const DB_VERSION = 1;
@@ -118,7 +118,7 @@ export function parseParticipantsCsv(csvText: string): Participant[] {
   });
 }
 
-export function parseGiftsCsv(csvText: string): RawGift[] {
+export function parseGiftsCsv(csvText: string): Gift[] {
   const lines = csvText
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -127,42 +127,17 @@ export function parseGiftsCsv(csvText: string): RawGift[] {
   if (lines.length === 0) return [];
 
   const maybeHeader = lines[0].toLowerCase();
-  const hasHeader =
-    maybeHeader.includes('categoria') || maybeHeader.includes('producto') || maybeHeader.includes('uds');
+  const hasHeader = maybeHeader.includes('categoria') || maybeHeader.includes('premio');
   const dataLines = hasHeader ? lines.slice(1) : lines;
 
   return dataLines.map((line, index) => {
-    const [category = '', prize = '', udsRaw = '1'] = line.split(',').map((value) => value.trim());
-    const uds = Number.parseInt(udsRaw, 10);
+    const [category = '', prize = ''] = line.split(',').map((value) => value.trim());
     return {
+      id: `${index}-${category}-${prize}`,
       category: category || 'Sin categoría',
       prize: prize || 'Premio',
-      uds: Number.isFinite(uds) && uds > 0 ? uds : 1,
     };
   });
-}
-
-export function expandGifts(raw: RawGift[]): Gift[] {
-  const expanded: Gift[] = [];
-  const counters = new Map<string, number>();
-
-  raw.forEach((gift) => {
-    const key = `${gift.category}::${gift.prize}`;
-    const start = counters.get(key) ?? 0;
-
-    for (let i = 0; i < gift.uds; i += 1) {
-      const index = start + i;
-      expanded.push({
-        id: `${gift.category}-${gift.prize}-${index}`,
-        category: gift.category,
-        prize: gift.prize,
-      });
-    }
-
-    counters.set(key, start + gift.uds);
-  });
-
-  return expanded;
 }
 
 export function presortWinners(participants: Participant[], gifts: Gift[]): Winner[] {
