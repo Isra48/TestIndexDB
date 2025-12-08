@@ -281,6 +281,14 @@ body {
   gap: 8px;
 }
 
+.session-indicator {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 600;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   clearDatabase,
   parseGiftsCsv,
@@ -11,11 +11,19 @@ import { Gift, Participant, Winner } from '../types';
 
 const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'Admin';
+const SESSION_STORAGE_KEY = 'adminSession';
+const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
+
+type SessionData = {
+  user: string;
+  timestamp: number;
+};
 
 function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
+  const [sessionStart, setSessionStart] = useState<number | null>(null);
 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [gifts, setGifts] = useState<Gift[]>([]);
@@ -23,20 +31,87 @@ function AdminPage() {
 
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [sessionMessage, setSessionMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const canPresort = useMemo(() => participants.length > 0 && gifts.length > 0, [participants, gifts]);
 
+  const persistSession = (data: SessionData) => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  };
+
+  const resetStateAfterSession = (message = '') => {
+    setIsLoggedIn(false);
+    setSessionStart(null);
+    setUser('');
+    setPassword('');
+    setParticipants([]);
+    setGifts([]);
+    setWinners([]);
+    setStatus('');
+    setError('');
+    setSessionMessage(message);
+    setIsProcessing(false);
+    setIsSaving(false);
+  };
+
   const handleLogin = (event: FormEvent) => {
     event.preventDefault();
     if (user === ADMIN_USER && password === ADMIN_PASS) {
       setIsLoggedIn(true);
+      const now = Date.now();
+      setSessionStart(now);
+      persistSession({ user, timestamp: now });
       setError('');
+      setSessionMessage('');
     } else {
       setError('Usuario o contraseña incorrectos. Usa Admin / Admin');
     }
   };
+
+  const handleLogout = (message = '') => {
+    clearSession();
+    resetStateAfterSession(message);
+  };
+
+  useEffect(() => {
+    const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!stored) return;
+
+    try {
+      const parsed: SessionData = JSON.parse(stored);
+      const isExpired = Date.now() - parsed.timestamp >= SESSION_DURATION_MS;
+      if (isExpired) {
+        handleLogout('Sesión expirada');
+        return;
+      }
+
+      setIsLoggedIn(true);
+      setSessionStart(parsed.timestamp);
+      setUser(parsed.user);
+      setSessionMessage('');
+    } catch (err) {
+      handleLogout();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || !sessionStart) return;
+
+    const interval = setInterval(() => {
+      const isExpired = Date.now() - sessionStart >= SESSION_DURATION_MS;
+      if (isExpired) {
+        handleLogout('Sesión expirada');
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn, sessionStart]);
 
   const readFile = (file: File, parser: (text: string) => Participant[] | Gift[]) => {
     return new Promise<Participant[] | Gift[]>((resolve, reject) => {
@@ -153,6 +228,7 @@ function AdminPage() {
               Entrar
             </button>
           </form>
+          {sessionMessage && <p className="alert">{sessionMessage}</p>}
           {error && <p className="alert">{error}</p>}
         </section>
       </div>
@@ -168,6 +244,12 @@ function AdminPage() {
             <p>Sube participantes y premios en CSV para generar el presorteo.</p>
           </div>
           <div className="actions-inline">
+            <div className="session-indicator" role="status">
+              {user ? `Sesión activa: ${user}` : 'Sesión activa'}
+            </div>
+            <button className="ghost-button" onClick={() => handleLogout()}>
+              Cerrar sesión
+            </button>
             <button className="ghost-button" onClick={handleReset}>
               Resetear base local
             </button>
