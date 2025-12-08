@@ -11,6 +11,7 @@ import { Gift, Participant, Winner } from '../types';
 
 const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'Admin';
+const PAGE_SIZE = 30;
 
 function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -25,6 +26,10 @@ function AdminPage() {
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const canPresort = useMemo(() => participants.length > 0 && gifts.length > 0, [participants, gifts]);
 
@@ -97,6 +102,7 @@ function AdminPage() {
     try {
       const generated = presortWinners(participants, gifts);
       setWinners(generated);
+      setCurrentPage(1);
       setStatus('Ganadores listos. Guarda para exportar y persistir.');
     } catch (err) {
       setError('Ocurrió un problema al generar los ganadores.');
@@ -131,7 +137,69 @@ function AdminPage() {
     setParticipants([]);
     setGifts([]);
     setWinners([]);
+    setCurrentPage(1);
+    setSearchTerm('');
+    setSelectedCategory('all');
     setStatus('Base de datos limpia. Puedes cargar nuevas listas.');
+  };
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    winners.forEach((winner) => {
+      if (winner.gift.category) {
+        set.add(winner.gift.category);
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [winners]);
+
+  const filteredWinners = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase();
+
+    const filtered = winners
+      .filter((winner) =>
+        selectedCategory === 'all' ? true : winner.gift.category === selectedCategory
+      )
+      .filter((winner) =>
+        normalizedSearch
+          ? winner.participant.name.toLowerCase().includes(normalizedSearch)
+          : true
+      )
+      .sort((a, b) => {
+        const comparison = a.participant.name.localeCompare(b.participant.name);
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+
+    return filtered;
+  }, [winners, searchTerm, selectedCategory, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredWinners.length / PAGE_SIZE));
+  const paginatedWinners = filteredWinners.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (value: 'asc' | 'desc') => {
+    setSortOrder(value);
+    setCurrentPage(1);
+  };
+
+  const goToPreviousPage = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const goToNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
   };
 
   if (!isLoggedIn) {
@@ -205,20 +273,105 @@ function AdminPage() {
         <div className="winners-preview">
           <div className="results-header">
             <h3>Ganadores generados</h3>
-            <span className="badge">{winners.length}</span>
+            <span className="badge">{filteredWinners.length}</span>
           </div>
-          <div className="results-list compact">
-            {winners.length === 0 && <p className="hint">Aún no se han generado ganadores.</p>}
-            {winners.map((winner) => (
-              <div className="winner-card" key={winner.id}>
-                <div className="winner-info">
-                  <span className="winner-name">{winner.participant.name}</span>
-                  <span className="winner-gift">{winner.gift.prize}</span>
-                </div>
-                <div className="winner-category">{winner.gift.category}</div>
+          <div className="filters-row">
+            <label className="filter-control">
+              <span className="hint">Buscar por nombre</span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Nombre del participante"
+              />
+            </label>
+            <label className="filter-control">
+              <span className="hint">Categoría</span>
+              <select
+                value={selectedCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+              >
+                <option value="all">Todas</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-control">
+              <span className="hint">Orden alfabético</span>
+              <select
+                value={sortOrder}
+                onChange={(e) => handleSortChange(e.target.value as 'asc' | 'desc')}
+              >
+                <option value="asc">A → Z</option>
+                <option value="desc">Z → A</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="table-wrapper">
+            {paginatedWinners.length === 0 && !isProcessing && (
+              <p className="hint">Aún no se han generado ganadores.</p>
+            )}
+            {paginatedWinners.length > 0 && (
+              <div className="results-list compact">
+                <table className="winners-table">
+                  <thead>
+                    <tr>
+                      <th>Participante</th>
+                      <th>Número de empleado</th>
+                      <th>Email</th>
+                      <th>Premio</th>
+                      <th>Categoría</th>
+                      <th>Costo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedWinners.map((winner) => (
+                      <tr key={winner.id}>
+                        <td className="winner-name">{winner.participant.name}</td>
+                        <td>{winner.participant.employeeNumber || '—'}</td>
+                        <td>{winner.participant.email || '—'}</td>
+                        <td className="winner-gift">{winner.gift.prize}</td>
+                        <td>{winner.gift.category}</td>
+                        <td>{winner.gift.cost || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+            )}
+            {isProcessing && (
+              <div className="table-overlay" role="status" aria-label="procesando sorteo">
+                <div className="loader" />
+                <span className="hint">Generando ganadores...</span>
+              </div>
+            )}
           </div>
+
+          {paginatedWinners.length > 0 && (
+            <div className="pagination-row">
+              <button
+                className="secondary-button"
+                onClick={goToPreviousPage}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </button>
+              <span className="hint">
+                Página {currentPage} de {totalPages} ({filteredWinners.length} resultados)
+              </span>
+              <button
+                className="secondary-button"
+                onClick={goToNextPage}
+                disabled={currentPage === totalPages || filteredWinners.length === 0}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>

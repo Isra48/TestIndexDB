@@ -85,12 +85,15 @@ export async function hasStoredData(): Promise<boolean> {
 }
 
 export function winnersToCSV(winners: Winner[]): string {
-  const header = 'Categoria,Premio,Participante';
+  const header = 'Categoria,Premio,Participante,employeeNumber,email,costo';
   const rows = winners.map((winner) =>
     [
       JSON.stringify(winner.gift.category ?? ''),
       JSON.stringify(winner.gift.prize ?? ''),
       JSON.stringify(winner.participant.name ?? ''),
+      JSON.stringify(winner.participant.employeeNumber ?? ''),
+      JSON.stringify(winner.participant.email ?? ''),
+      JSON.stringify(winner.gift.cost ?? ''),
     ].join(',')
   );
   return [header, ...rows].join('\n');
@@ -109,11 +112,13 @@ export function parseParticipantsCsv(csvText: string): Participant[] {
   const dataLines = hasHeader ? lines.slice(1) : lines;
 
   return dataLines.map((line, index) => {
-    const [first, second] = line.split(',').map((value) => value.trim());
+    const [first, second, third, fourth] = line.split(',').map((value) => value.trim());
     const name = second && !first ? second : first;
     return {
       id: `${index}-${name}`,
       name: name || `Participante ${index + 1}`,
+      employeeNumber: third || undefined,
+      email: fourth || undefined,
     };
   });
 }
@@ -131,11 +136,12 @@ export function parseGiftsCsv(csvText: string): Gift[] {
   const dataLines = hasHeader ? lines.slice(1) : lines;
 
   return dataLines.map((line, index) => {
-    const [category = '', prize = ''] = line.split(',').map((value) => value.trim());
+    const [category = '', prize = '', cost = ''] = line.split(',').map((value) => value.trim());
     return {
       id: `${index}-${category}-${prize}`,
       category: category || 'Sin categoría',
       prize: prize || 'Premio',
+      cost: cost || undefined,
     };
   });
 }
