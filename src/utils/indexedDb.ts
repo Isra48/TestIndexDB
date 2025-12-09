@@ -85,14 +85,14 @@ export async function hasStoredData(): Promise<boolean> {
 }
 
 export function winnersToCSV(winners: Winner[]): string {
-  const header = 'Categoria,Premio,Participante,employeeNumber,email,costo';
+  const header = 'name,employeeNumber,email,prize,category,cost';
   const rows = winners.map((winner) =>
     [
-      JSON.stringify(winner.gift.category ?? ''),
-      JSON.stringify(winner.gift.prize ?? ''),
       JSON.stringify(winner.participant.name ?? ''),
       JSON.stringify(winner.participant.employeeNumber ?? ''),
       JSON.stringify(winner.participant.email ?? ''),
+      JSON.stringify(winner.gift.prize ?? ''),
+      JSON.stringify(winner.gift.category ?? ''),
       JSON.stringify(winner.gift.cost ?? ''),
     ].join(',')
   );
@@ -107,18 +107,26 @@ export function parseParticipantsCsv(csvText: string): Participant[] {
 
   if (lines.length === 0) return [];
 
-  const maybeHeader = lines[0].toLowerCase();
-  const hasHeader = maybeHeader.includes('name') || maybeHeader.includes('participante');
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const dataLines = lines.slice(1);
 
   return dataLines.map((line, index) => {
-    const [first, second, third, fourth] = line.split(',').map((value) => value.trim());
-    const name = second && !first ? second : first;
+    const values = line.split(',').map((value) => value.trim());
+    const row: Record<string, string> = {};
+
+    headers.forEach((header, idx) => {
+      row[header] = values[idx] ?? '';
+    });
+
+    const name = row['name'] ?? '';
+    const email = row['email'] ?? '';
+    const employeeNumber = row['employeenumber'] ?? '';
+
     return {
       id: `${index}-${name}`,
-      name: name || `Participante ${index + 1}`,
-      employeeNumber: third || undefined,
-      email: fourth || undefined,
+      name,
+      employeeNumber: employeeNumber || undefined,
+      email: email || undefined,
     };
   });
 }
@@ -131,17 +139,28 @@ export function parseGiftsCsv(csvText: string): Gift[] {
 
   if (lines.length === 0) return [];
 
-  const maybeHeader = lines[0].toLowerCase();
-  const hasHeader = maybeHeader.includes('categoria') || maybeHeader.includes('premio');
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const dataLines = lines.slice(1);
 
   return dataLines.map((line, index) => {
-    const [category = '', prize = '', cost = ''] = line.split(',').map((value) => value.trim());
+    const values = line.split(',').map((value) => value.trim());
+    const row: Record<string, string> = {};
+
+    headers.forEach((header, idx) => {
+      row[header] = values[idx] ?? '';
+    });
+
+    const clean = (row['costo'] ?? '').replace(/[^0-9.-]+/g, '');
+    const cost = clean === '' ? undefined : Number(clean);
+    const category = row['categoria'] ?? '';
+    const prize = row['producto'] ?? '';
+    const unit = row['unidad'] ?? '';
     return {
       id: `${index}-${category}-${prize}`,
-      category: category || 'Sin categoría',
-      prize: prize || 'Premio',
-      cost: cost || undefined,
+      category,
+      prize,
+      unit,
+      cost,
     };
   });
 }

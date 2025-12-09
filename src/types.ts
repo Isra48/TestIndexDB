@@ -9,7 +9,8 @@ export type Gift = {
   id: string;
   category: string;
   prize: string;
-  cost?: string;
+  unit?: string;
+  cost?: number;
 };
 
 export type Winner = {
