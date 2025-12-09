@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   clearDatabase,
+  ParsedGiftsResult,
   parseGiftsCsv,
   parseParticipantsCsv,
   presortWinners,
@@ -16,6 +17,7 @@ const ADMIN_PASS = 'Admin';
 const SESSION_STORAGE_KEY = 'adminSession';
 const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
 const PAGE_SIZE = 30;
+const GIFTS_TEMPLATE_HEADER = 'categoria,producto,uds,costo';
 
 // Formateador de costos para la tabla del Admin.
 const formatCurrency = (value?: number | string) => {
@@ -51,6 +53,7 @@ function AdminPage() {
 
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [sessionMessage, setSessionMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -217,8 +220,8 @@ function AdminPage() {
   // FILE PARSING / LOADERS
   // ------------------------------
 
-  const readFile = (file: File, parser: (text: string) => Participant[] | Gift[]) => {
-    return new Promise<Participant[] | Gift[]>((resolve, reject) => {
+  const readFile = <T,>(file: File, parser: (text: string) => T) => {
+    return new Promise<T>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const text = reader.result?.toString() ?? '';
@@ -233,6 +236,7 @@ function AdminPage() {
     if (!fileList?.length) return;
     setStatus('Cargando participantes...');
     setError('');
+    setWarning('');
     try {
       const parsed = (await readFile(fileList[0], parseParticipantsCsv)) as Participant[];
       setParticipants(parsed);
@@ -242,16 +246,35 @@ function AdminPage() {
     }
   };
 
+  // Validaciones reforzadas del CSV de premios antes de hidratar la UI.
   const handleGiftsUpload = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
     setStatus('Cargando premios...');
     setError('');
+    setWarning('');
     try {
-      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as Gift[];
-      setGifts(parsed);
-      setStatus(`Premios cargados: ${parsed.length}`);
-    } catch {
-      setError('No se pudieron leer los premios.');
+      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as ParsedGiftsResult;
+
+      if (parsed.gifts.length === 0) {
+        setError('CSV inválido: no tiene premios válidos.');
+        setStatus('');
+        return;
+      }
+
+      setGifts(parsed.gifts);
+
+      if (parsed.discardedRows > 0) {
+        setWarning(`Se descartaron ${parsed.discardedRows} filas por campos vacíos.`);
+      }
+
+      setStatus(`Premios cargados: ${parsed.gifts.length}`);
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error && uploadError.message
+          ? uploadError.message
+          : 'No se pudo procesar el archivo de premios.';
+      setError(message);
+      setStatus('');
     }
   };
 
@@ -259,6 +282,20 @@ function AdminPage() {
   // EXPORT
   // ------------------------------
 
+  // Generación del template oficial de premios (solo encabezados).
+  const downloadGiftsTemplate = () => {
+    const blob = new Blob([`${GIFTS_TEMPLATE_HEADER}\n`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'template_sorteo.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Exportación del CSV de ganadores generado en el presorteo.
   const downloadCsv = (csvContent: string) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -395,45 +432,52 @@ function AdminPage() {
   // ------------------------------
 
   return (
-    <div className="admin-layout">
-      <header className="app-header">
-        <div className="logo-text">Rifa corporativa</div>
-        <nav className="nav-bar">
-          <Link to="/">Inicio</Link>
-          <Link to="/Admin">Administración</Link>
-        </nav>
-      </header>
+    <div className="admin-page">
+      <section className="card upload-card">
 
-      {!isLoggedIn && (
-        <div className="admin-page">
-          <section className="card login-card">
-            <h2>Login administrativo</h2>
-            <p>Usa Admin / Admin para acceder.</p>
+        {/* HEADER */}
+        <div className="card-header">
+          <div>
+            <h2>Administración de la rifa</h2>
+            <p>Sube participantes y premios en CSV para generar el presorteo.</p>
+          </div>
 
-            <form onSubmit={handleLogin} className="form-grid">
-              <label className="form-field">
-                <span>Usuario</span>
-                <input
-                  value={user}
-                  onChange={(e) => setUser(e.target.value)}
-                  placeholder="Admin"
-                />
-              </label>
+          <div className="actions-inline">
+            <div className="session-indicator" role="status">
+              {user ? `Sesión activa: ${user}` : 'Sesión activa'}
+            </div>
 
-              <label className="form-field">
-                <span>Contraseña</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Admin"
-                />
-              </label>
+            {/* Botón para descargar el template CSV de premios. */}
+            <button className="secondary-button" onClick={downloadGiftsTemplate}>
+              Descargar template CSV
+            </button>
 
-              <button className="primary-button" type="submit">
-                Entrar
-              </button>
-            </form>
+            <button className="ghost-button" onClick={() => handleLogout()}>
+              Cerrar sesión
+            </button>
+
+            <button className="ghost-button" onClick={handleReset}>
+              Resetear base local
+            </button>
+          </div>
+        </div>
+
+        {/* UPLOADS */}
+        <div className="upload-grid">
+          <div className="dropzone">
+            <h3>Participantes</h3>
+            <p>Archivo CSV con los nombres en la primera columna.</p>
+            <input type="file" accept=".csv,text/csv" onChange={(e) => handleParticipantsUpload(e.target.files)} />
+            <p className="hint">Cargados: {participants.length}</p>
+          </div>
+
+          <div className="dropzone">
+            <h3>Premios</h3>
+            <p>CSV con columnas: categoría, premio.</p>
+            <input type="file" accept=".csv,text/csv" onChange={(e) => handleGiftsUpload(e.target.files)} />
+            <p className="hint">Cargados: {gifts.length}</p>
+          </div>
+        </div>
 
             {sessionMessage && <p className="alert">{sessionMessage}</p>}
             {error && <p className="alert">{error}</p>}
@@ -467,22 +511,55 @@ function AdminPage() {
                 </div>
               </div>
 
-              {/* UPLOADS */}
-              <div className="upload-grid">
-                <div className="dropzone">
-                  <h3>Participantes</h3>
-                  <p>Archivo CSV con los nombres en la primera columna.</p>
-                  <input type="file" accept=".csv,text/csv" onChange={(e) => handleParticipantsUpload(e.target.files)} />
-                  <p className="hint">Cargados: {participants.length}</p>
-                </div>
+        {status && <p className="hint">{status}</p>}
+        {warning && <p className="alert">{warning}</p>}
+        {error && <p className="alert">{error}</p>}
+        {isProcessing && <div className="loader" role="status" aria-label="procesando"></div>}
 
-                <div className="dropzone">
-                  <h3>Premios</h3>
-                  <p>CSV con columnas: categoría, premio.</p>
-                  <input type="file" accept=".csv,text/csv" onChange={(e) => handleGiftsUpload(e.target.files)} />
-                  <p className="hint">Cargados: {gifts.length}</p>
-                </div>
-              </div>
+        {/* WINNERS TABLE */}
+        <div className="winners-preview">
+
+          <div className="results-header">
+            <h3>Ganadores generados</h3>
+            <span className="badge">{filteredWinners.length}</span>
+          </div>
+
+          {/* FILTERS */}
+          <div className="filters-row">
+            <label className="filter-control">
+              <span className="hint">Buscar por nombre</span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Nombre del participante"
+              />
+            </label>
+
+            <label className="filter-control">
+              <span className="hint">Categoría</span>
+              <select
+                value={selectedCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+              >
+                <option value="all">Todas</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="filter-control">
+              <span className="hint">Orden alfabético</span>
+              <select
+                value={sortOrder}
+                onChange={(e) => handleSortChange(e.target.value as 'asc' | 'desc')}
+              >
+                <option value="asc">A → Z</option>
+                <option value="desc">Z → A</option>
+              </select>
+            </label>
+          </div>
 
               {/* ACTIONS */}
               <div className="action-row">
