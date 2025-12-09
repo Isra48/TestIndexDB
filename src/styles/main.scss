@@ -15,6 +15,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background: 
+   linear-gradient(rgba(0, 0, 0, 0.191), rgba(0, 0, 0, 0.2)), /* oscurece */
   url('/background.jpg') center/cover no-repeat,
     linear-gradient(135deg, #cc252b, #8c1b2f);
 
@@ -65,25 +66,44 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 32px;
+  align-items: center; 
+  min-height: 100vh;
 
 
 }
 
 .hero-card,
+
+
+
 .card {
   width: min(1200px, 100%);
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  height: 100%;
+  background:  #ffffff06;;
+  border:1px solid rgba(255, 255, 255, 0.026);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 10px #00000080;
 }
 
 .hero-card {
+ 
+   width: 95vw;  /* 85% del ancho de la pantalla */
+   max-width: 1600px;   /* límite en pantallas grandes */
+   min-width: 900px;
+   height: 85vh;        /* 70% del alto del viewport */
+  max-height: 900px; 
+   min-height: 500px;  /* límite para LED walls */
+
+
   display: grid;
   grid-template-columns: 360px 1fr;
-  gap: 24px;
+  gap: 32px;
+
+
+  
+  
+
 }
 
 .filter-panel {
