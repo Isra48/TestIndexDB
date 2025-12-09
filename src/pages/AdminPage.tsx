@@ -16,13 +16,14 @@ const SESSION_STORAGE_KEY = 'adminSession';
 const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
 const PAGE_SIZE = 30;
 
-// Formateador de costos para la tabla del Admin.
-// Acepta números o strings con comas y devuelve el valor con el símbolo de pesos y separadores.
+// Formateador de costos para la tabla del Admin en formato MXN.
 const formatCurrency = (value?: number | string) => {
-  if (value === undefined || value === null || value === '') return '—';
+  if (value === undefined || value === null) return '—';
 
   const sanitizedValue =
-    typeof value === 'number' ? value : value.toString().replace(/[^0-9.-]+/g, '');
+    typeof value === 'number'
+      ? value
+      : value.toString().replace(/[^0-9.-]+/g, '');
 
   if (typeof sanitizedValue === 'string' && sanitizedValue.trim() === '') return '—';
 
@@ -31,7 +32,10 @@ const formatCurrency = (value?: number | string) => {
 
   if (!Number.isFinite(numericValue)) return '—';
 
-  return `$${new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0 }).format(numericValue)}`;
+  return numericValue.toLocaleString('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  });
 };
 
 type SessionData = {
@@ -564,7 +568,7 @@ function AdminPage() {
                       <th>Email</th>
                       <th>Premio</th>
                       <th>Categoría</th>
-                      <th>Costo</th>
+                      <th className="winner-cost">Costo</th>
                     </tr>
                   </thead>
 
@@ -576,7 +580,7 @@ function AdminPage() {
                         <td>{winner.participant.email || '—'}</td>
                         <td className="winner-gift">{winner.gift.prize}</td>
                         <td>{winner.gift.category}</td>
-                        <td>{formatCurrency(winner.gift.cost)}</td>
+                        <td className="winner-cost">{formatCurrency(winner.gift.cost)}</td>
                       </tr>
                     ))}
                   </tbody>
