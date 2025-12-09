@@ -13,12 +13,12 @@ const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'Admin';
 const SESSION_STORAGE_KEY = 'adminSession';
 const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
+const PAGE_SIZE = 30;
 
 type SessionData = {
   user: string;
   timestamp: number;
 };
-const PAGE_SIZE = 30;
 
 function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -35,12 +35,17 @@ function AdminPage() {
   const [sessionMessage, setSessionMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
 
   const canPresort = useMemo(() => participants.length > 0 && gifts.length > 0, [participants, gifts]);
+
+  // ------------------------------
+  //  SESSION PERSISTENCE HELPERS
+  // ------------------------------
 
   const persistSession = (data: SessionData) => {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data));
@@ -50,6 +55,7 @@ function AdminPage() {
     localStorage.removeItem(SESSION_STORAGE_KEY);
   };
 
+  // Limpieza total (logout manual)
   const resetStateAfterSession = (message = '') => {
     setIsLoggedIn(false);
     setSessionStart(null);
@@ -65,11 +71,36 @@ function AdminPage() {
     setIsSaving(false);
   };
 
+  // Logout configurable (manual o expiración)
+  const handleLogout = (
+    message = '',
+    options: { preserveData?: boolean } = { preserveData: false }
+  ) => {
+    clearSession();
+
+    if (!options.preserveData) {
+      // logout manual
+      resetStateAfterSession(message);
+      return;
+    }
+
+    // expiración → NO borrar data previa
+    setIsLoggedIn(false);
+    setSessionStart(null);
+    setUser('');
+    setPassword('');
+    setSessionMessage(message);
+  };
+
+  // ------------------------------
+  // LOGIN HANDLING
+  // ------------------------------
+
   const handleLogin = (event: FormEvent) => {
     event.preventDefault();
     if (user === ADMIN_USER && password === ADMIN_PASS) {
-      setIsLoggedIn(true);
       const now = Date.now();
+      setIsLoggedIn(true);
       setSessionStart(now);
       persistSession({ user, timestamp: now });
       setError('');
@@ -79,10 +110,9 @@ function AdminPage() {
     }
   };
 
-  const handleLogout = (message = '') => {
-    clearSession();
-    resetStateAfterSession(message);
-  };
+  // ------------------------------
+  // RESTAURAR SESIÓN DESDE LOCALSTORAGE
+  // ------------------------------
 
   useEffect(() => {
     const stored = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -91,19 +121,30 @@ function AdminPage() {
     try {
       const parsed: SessionData = JSON.parse(stored);
       const isExpired = Date.now() - parsed.timestamp >= SESSION_DURATION_MS;
+
       if (isExpired) {
-        handleLogout('Sesión expirada');
+        handleLogout('Sesión expirada', { preserveData: true });
         return;
       }
 
+      // Restaurar sesión activa SIN llenar inputs
+      const now = Date.now();
       setIsLoggedIn(true);
-      setSessionStart(parsed.timestamp);
-      setUser(parsed.user);
+      setSessionStart(now);
+
+      // renovar timestamp
+      persistSession({ user: parsed.user, timestamp: now });
+
       setSessionMessage('');
+
     } catch (err) {
       handleLogout();
     }
   }, []);
+
+  // ------------------------------
+  // EXPIRACIÓN AUTOMÁTICA EN VIVO
+  // ------------------------------
 
   useEffect(() => {
     if (!isLoggedIn || !sessionStart) return;
@@ -111,12 +152,16 @@ function AdminPage() {
     const interval = setInterval(() => {
       const isExpired = Date.now() - sessionStart >= SESSION_DURATION_MS;
       if (isExpired) {
-        handleLogout('Sesión expirada');
+        handleLogout('Sesión expirada', { preserveData: true });
       }
     }, 1000);
 
     return () => clearInterval(interval);
   }, [isLoggedIn, sessionStart]);
+
+  // ------------------------------
+  // FILE PARSING / LOADERS
+  // ------------------------------
 
   const readFile = (file: File, parser: (text: string) => Participant[] | Gift[]) => {
     return new Promise<Participant[] | Gift[]>((resolve, reject) => {
@@ -138,7 +183,7 @@ function AdminPage() {
       const parsed = (await readFile(fileList[0], parseParticipantsCsv)) as Participant[];
       setParticipants(parsed);
       setStatus(`Participantes cargados: ${parsed.length}`);
-    } catch (err) {
+    } catch {
       setError('No se pudieron leer los participantes.');
     }
   };
@@ -151,10 +196,14 @@ function AdminPage() {
       const parsed = (await readFile(fileList[0], parseGiftsCsv)) as Gift[];
       setGifts(parsed);
       setStatus(`Premios cargados: ${parsed.length}`);
-    } catch (err) {
+    } catch {
       setError('No se pudieron leer los premios.');
     }
   };
+
+  // ------------------------------
+  // EXPORT
+  // ------------------------------
 
   const downloadCsv = (csvContent: string) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -165,6 +214,10 @@ function AdminPage() {
     link.click();
     URL.revokeObjectURL(url);
   };
+
+  // ------------------------------
+  // PRESORTEO
+  // ------------------------------
 
   const handlePresort = async () => {
     if (!canPresort) {
@@ -179,7 +232,7 @@ function AdminPage() {
       setWinners(generated);
       setCurrentPage(1);
       setStatus('Ganadores listos. Guarda para exportar y persistir.');
-    } catch (err) {
+    } catch {
       setError('Ocurrió un problema al generar los ganadores.');
     } finally {
       setIsProcessing(false);
@@ -198,12 +251,16 @@ function AdminPage() {
       await saveWinners(winners);
       downloadCsv(winnersToCSV(winners));
       setStatus('Ganadores guardados en IndexedDB y exportados como CSV.');
-    } catch (err) {
+    } catch {
       setError('No se pudieron guardar los ganadores.');
     } finally {
       setIsSaving(false);
     }
   };
+
+  // ------------------------------
+  // RESET LOCAL DB
+  // ------------------------------
 
   const handleReset = async () => {
     setStatus('Limpiando datos previos...');
@@ -218,12 +275,14 @@ function AdminPage() {
     setStatus('Base de datos limpia. Puedes cargar nuevas listas.');
   };
 
+  // ------------------------------
+  // FILTERS
+  // ------------------------------
+
   const categories = useMemo(() => {
     const set = new Set<string>();
     winners.forEach((winner) => {
-      if (winner.gift.category) {
-        set.add(winner.gift.category);
-      }
+      if (winner.gift.category) set.add(winner.gift.category);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [winners]);
@@ -277,25 +336,42 @@ function AdminPage() {
     setCurrentPage((prev) => Math.min(totalPages, prev + 1));
   };
 
+  // ------------------------------
+  // LOGIN VIEW
+  // ------------------------------
+
   if (!isLoggedIn) {
     return (
       <div className="admin-page">
         <section className="card login-card">
           <h2>Login administrativo</h2>
           <p>Usa Admin / Admin para acceder.</p>
+
           <form onSubmit={handleLogin} className="form-grid">
             <label className="form-field">
               <span>Usuario</span>
-              <input value={user} onChange={(e) => setUser(e.target.value)} placeholder="Admin" />
+              <input
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+                placeholder="Admin"
+              />
             </label>
+
             <label className="form-field">
               <span>Contraseña</span>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Admin" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Admin"
+              />
             </label>
+
             <button className="primary-button" type="submit">
               Entrar
             </button>
           </form>
+
           {sessionMessage && <p className="alert">{sessionMessage}</p>}
           {error && <p className="alert">{error}</p>}
         </section>
@@ -303,27 +379,37 @@ function AdminPage() {
     );
   }
 
+  // ------------------------------
+  // ADMIN UI
+  // ------------------------------
+
   return (
     <div className="admin-page">
       <section className="card upload-card">
+
+        {/* HEADER */}
         <div className="card-header">
           <div>
             <h2>Administración de la rifa</h2>
             <p>Sube participantes y premios en CSV para generar el presorteo.</p>
           </div>
+
           <div className="actions-inline">
             <div className="session-indicator" role="status">
               {user ? `Sesión activa: ${user}` : 'Sesión activa'}
             </div>
+
             <button className="ghost-button" onClick={() => handleLogout()}>
               Cerrar sesión
             </button>
+
             <button className="ghost-button" onClick={handleReset}>
               Resetear base local
             </button>
           </div>
         </div>
 
+        {/* UPLOADS */}
         <div className="upload-grid">
           <div className="dropzone">
             <h3>Participantes</h3>
@@ -331,6 +417,7 @@ function AdminPage() {
             <input type="file" accept=".csv,text/csv" onChange={(e) => handleParticipantsUpload(e.target.files)} />
             <p className="hint">Cargados: {participants.length}</p>
           </div>
+
           <div className="dropzone">
             <h3>Premios</h3>
             <p>CSV con columnas: categoría, premio.</p>
@@ -339,11 +426,21 @@ function AdminPage() {
           </div>
         </div>
 
+        {/* ACTIONS */}
         <div className="action-row">
-          <button className="primary-button" onClick={handlePresort} disabled={!canPresort || isProcessing}>
+          <button
+            className="primary-button"
+            onClick={handlePresort}
+            disabled={!canPresort || isProcessing}
+          >
             {isProcessing ? 'Procesando...' : 'Generar ganadores'}
           </button>
-          <button className="secondary-button" onClick={handleSave} disabled={winners.length === 0 || isSaving}>
+
+          <button
+            className="secondary-button"
+            onClick={handleSave}
+            disabled={winners.length === 0 || isSaving}
+          >
             {isSaving ? 'Guardando...' : 'Exportar CSV y guardar'}
           </button>
         </div>
@@ -352,11 +449,15 @@ function AdminPage() {
         {error && <p className="alert">{error}</p>}
         {isProcessing && <div className="loader" role="status" aria-label="procesando"></div>}
 
+        {/* WINNERS TABLE */}
         <div className="winners-preview">
+
           <div className="results-header">
             <h3>Ganadores generados</h3>
             <span className="badge">{filteredWinners.length}</span>
           </div>
+
+          {/* FILTERS */}
           <div className="filters-row">
             <label className="filter-control">
               <span className="hint">Buscar por nombre</span>
@@ -367,6 +468,7 @@ function AdminPage() {
                 placeholder="Nombre del participante"
               />
             </label>
+
             <label className="filter-control">
               <span className="hint">Categoría</span>
               <select
@@ -375,12 +477,11 @@ function AdminPage() {
               >
                 <option value="all">Todas</option>
                 {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
+                  <option key={category} value={category}>{category}</option>
                 ))}
               </select>
             </label>
+
             <label className="filter-control">
               <span className="hint">Orden alfabético</span>
               <select
@@ -393,10 +494,12 @@ function AdminPage() {
             </label>
           </div>
 
+          {/* TABLE */}
           <div className="table-wrapper">
             {paginatedWinners.length === 0 && !isProcessing && (
               <p className="hint">Aún no se han generado ganadores.</p>
             )}
+
             {paginatedWinners.length > 0 && (
               <div className="results-list compact">
                 <table className="winners-table">
@@ -410,6 +513,7 @@ function AdminPage() {
                       <th>Costo</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {paginatedWinners.map((winner) => (
                       <tr key={winner.id}>
@@ -425,6 +529,7 @@ function AdminPage() {
                 </table>
               </div>
             )}
+
             {isProcessing && (
               <div className="table-overlay" role="status" aria-label="procesando sorteo">
                 <div className="loader" />
@@ -433,6 +538,7 @@ function AdminPage() {
             )}
           </div>
 
+          {/* PAGINATION */}
           {paginatedWinners.length > 0 && (
             <div className="pagination-row">
               <button
@@ -442,9 +548,11 @@ function AdminPage() {
               >
                 Anterior
               </button>
+
               <span className="hint">
                 Página {currentPage} de {totalPages} ({filteredWinners.length} resultados)
               </span>
+
               <button
                 className="secondary-button"
                 onClick={goToNextPage}
