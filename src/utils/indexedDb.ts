@@ -126,12 +126,19 @@ const splitCsvLine = (line: string) => {
   return result;
 };
 
+const REQUIRED_GIFT_HEADERS = ['categoria', 'producto', 'uds', 'costo'];
+
 const normalizeRowLength = (headers: string[], values: string[]) => {
   if (values.length <= headers.length) return values;
   // Si la línea trae comas de miles sin comillas, las combinamos en el último campo.
   const head = values.slice(0, headers.length - 1);
   const tail = values.slice(headers.length - 1).join(',');
   return [...head, tail];
+};
+
+export type ParsedGiftsResult = {
+  gifts: Gift[];
+  discardedRows: number;
 };
 
 export function parseParticipantsCsv(csvText: string): Participant[] {
@@ -167,39 +174,87 @@ export function parseParticipantsCsv(csvText: string): Participant[] {
   });
 }
 
-export function parseGiftsCsv(csvText: string): Gift[] {
+export function parseGiftsCsv(csvText: string): ParsedGiftsResult {
   const lines = csvText
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (lines.length === 0) return [];
+  if (lines.length === 0) {
+    throw new Error('CSV inválido: no tiene datos.');
+  }
 
   const headers = splitCsvLine(lines[0]).map((header) => header.toLowerCase());
-  const dataLines = lines.slice(1);
+  const missingHeaders = REQUIRED_GIFT_HEADERS.filter((header) => !headers.includes(header));
+  const extraHeaders = headers.filter((header) => !REQUIRED_GIFT_HEADERS.includes(header));
+  const isOrderInvalid =
+    headers.length === REQUIRED_GIFT_HEADERS.length &&
+    REQUIRED_GIFT_HEADERS.some((header, index) => headers[index] !== header);
 
-  return dataLines.map((line, index) => {
+  if (missingHeaders.length > 0 || extraHeaders.length > 0 || isOrderInvalid) {
+    const structureErrors: string[] = [];
+
+    if (missingHeaders.length > 0) {
+      structureErrors.push(`Faltan columnas: ${missingHeaders.join(', ')}`);
+    }
+
+    if (extraHeaders.length > 0) {
+      structureErrors.push(`Columnas extra: ${extraHeaders.join(', ')}`);
+    }
+
+    if (isOrderInvalid) {
+      structureErrors.push('Estructura incorrecta: usa el template oficial.');
+    }
+
+    const message = structureErrors.length
+      ? structureErrors.join(' | ')
+      : 'Estructura incorrecta';
+
+    throw new Error(message);
+  }
+
+  const dataLines = lines.slice(1);
+  let discardedRows = 0;
+
+  const gifts = dataLines.reduce<Gift[]>((acc, line, index) => {
     const rawValues = splitCsvLine(line);
     const values = normalizeRowLength(headers, rawValues);
-    const row: Record<string, string> = {};
 
-    headers.forEach((header, idx) => {
-      row[header] = values[idx] ?? '';
-    });
+    if (values.length !== REQUIRED_GIFT_HEADERS.length) {
+      throw new Error(`Estructura incorrecta en la fila ${index + 2}.`);
+    }
 
-    const clean = (row['costo'] ?? '').replace(/[^0-9.-]+/g, '');
-    const cost = clean === '' ? undefined : Number(clean);
-    const category = row['categoria'] ?? '';
-    const prize = row['producto'] ?? '';
-    const unit = row['unidad'] ?? '';
-    return {
+    const [category, prize, unitsRaw, costRaw] = values.map((value) => value?.trim() ?? '');
+
+    if (!category || !prize || !unitsRaw || !costRaw) {
+      discardedRows += 1;
+      return acc;
+    }
+
+    const units = Number(unitsRaw);
+    const cleanCost = costRaw.replace(/[^0-9.-]+/g, '');
+    const cost = cleanCost === '' ? NaN : Number(cleanCost);
+
+    if (!Number.isInteger(units) || units < 1) {
+      throw new Error(`Tipos incorrectos en la fila ${index + 2}: uds debe ser un entero mayor o igual a 1.`);
+    }
+
+    if (!Number.isFinite(cost)) {
+      throw new Error(`Tipos incorrectos en la fila ${index + 2}: costo inválido.`);
+    }
+
+    acc.push({
       id: `${index}-${category}-${prize}`,
       category,
       prize,
-      unit,
+      unit: unitsRaw,
       cost,
-    };
-  });
+    });
+
+    return acc;
+  }, []);
+
+  return { gifts, discardedRows };
 }
 
 export function presortWinners(participants: Participant[], gifts: Gift[]): Winner[] {

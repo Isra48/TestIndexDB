@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   clearDatabase,
+  ParsedGiftsResult,
   parseGiftsCsv,
   parseParticipantsCsv,
   presortWinners,
@@ -15,6 +16,8 @@ const ADMIN_PASS = 'Admin';
 const SESSION_STORAGE_KEY = 'adminSession';
 const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
 const PAGE_SIZE = 30;
+const GIFTS_TEMPLATE_HEADER = 'categoria,producto,uds,costo';
+const PARTICIPANTS_TEMPLATE_HEADER = 'name,email,employeeNumber';
 
 // Formateador de costos para la tabla del Admin.
 // Acepta números o strings con comas y devuelve el valor con el símbolo de pesos y separadores.
@@ -51,6 +54,7 @@ function AdminPage() {
 
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [sessionMessage, setSessionMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -217,8 +221,20 @@ function AdminPage() {
   // FILE PARSING / LOADERS
   // ------------------------------
 
-  const readFile = (file: File, parser: (text: string) => Participant[] | Gift[]) => {
-    return new Promise<Participant[] | Gift[]>((resolve, reject) => {
+  const getCsvHeaders = (csvText: string) => {
+    const [firstLine] = csvText.split(/\r?\n/);
+    return (firstLine ?? '')
+      .split(',')
+      .map((header) => header.trim().toLowerCase());
+  };
+
+  const hasExactHeaders = (headers: string[], expected: string[]) => {
+    if (headers.length !== expected.length) return false;
+    return expected.every((header, index) => headers[index] === header);
+  };
+
+  const readFile = <T,>(file: File, parser: (text: string) => T) => {
+    return new Promise<T>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const text = reader.result?.toString() ?? '';
@@ -233,25 +249,108 @@ function AdminPage() {
     if (!fileList?.length) return;
     setStatus('Cargando participantes...');
     setError('');
+    setWarning('');
+
     try {
-      const parsed = (await readFile(fileList[0], parseParticipantsCsv)) as Participant[];
-      setParticipants(parsed);
-      setStatus(`Participantes cargados: ${parsed.length}`);
+      const csvText = await readFile(fileList[0], (text) => text);
+
+      // Validación de estructura del CSV
+      const headers = getCsvHeaders(csvText);
+      const expectedParticipantHeaders = PARTICIPANTS_TEMPLATE_HEADER.split(',').map((h) =>
+        h.toLowerCase()
+      );
+
+      if (!hasExactHeaders(headers, expectedParticipantHeaders)) {
+        setError('El CSV de participantes no tiene la estructura correcta.'); // Mensaje de error mostrado al usuario
+        setStatus('');
+        return;
+      }
+
+      const parsed = parseParticipantsCsv(csvText);
+      let discardedRows = 0;
+
+      const sanitizedParticipants = parsed.reduce<Participant[]>((acc, row, index) => {
+        // Validación de tipos y filas
+        const name = (row.name ?? '').trim();
+        const email = (row.email ?? '').trim();
+        const employeeNumberRaw = row.employeeNumber ?? '';
+        const employeeNumber = employeeNumberRaw?.toString().trim();
+
+        if (!name || !email || !employeeNumber) {
+          discardedRows += 1;
+          return acc;
+        }
+
+        acc.push({
+          ...row,
+          id: row.id || `${index}-${name}`,
+          name,
+          email,
+          employeeNumber,
+        });
+
+        return acc;
+      }, []);
+
+      if (sanitizedParticipants.length === 0) {
+        setError('Hay filas con datos incompletos o inválidos.'); // Mensaje de error mostrado al usuario
+        setStatus('');
+        return;
+      }
+
+      if (discardedRows > 0) {
+        setWarning('Se omitieron filas vacías en el CSV.'); // Mensaje de error mostrado al usuario
+      }
+
+      setParticipants(sanitizedParticipants);
+      setStatus(`Participantes cargados: ${sanitizedParticipants.length}`);
     } catch {
-      setError('No se pudieron leer los participantes.');
+      setError('No se pudieron leer los participantes.'); // Mensaje de error mostrado al usuario
+      setStatus('');
     }
   };
 
+  // Validaciones reforzadas del CSV de premios antes de hidratar la UI.
   const handleGiftsUpload = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
     setStatus('Cargando premios...');
     setError('');
+    setWarning('');
+
     try {
-      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as Gift[];
-      setGifts(parsed);
-      setStatus(`Premios cargados: ${parsed.length}`);
-    } catch {
-      setError('No se pudieron leer los premios.');
+      const csvText = await readFile(fileList[0], (text) => text);
+
+      // Validación de estructura del CSV
+      const headers = getCsvHeaders(csvText);
+      const expectedGiftHeaders = GIFTS_TEMPLATE_HEADER.split(',').map((h) => h.toLowerCase());
+
+      if (!hasExactHeaders(headers, expectedGiftHeaders)) {
+        setError('El CSV de premios no coincide con el template oficial.'); // Mensaje de error mostrado al usuario
+        setStatus('');
+        return;
+      }
+
+      const parsed = parseGiftsCsv(csvText) as ParsedGiftsResult;
+
+      if (parsed.gifts.length === 0) {
+        setError('Hay filas con datos incompletos o inválidos.'); // Mensaje de error mostrado al usuario
+        setStatus('');
+        return;
+      }
+
+      if (parsed.discardedRows > 0) {
+        setWarning('Se omitieron filas vacías en el CSV.'); // Mensaje de error mostrado al usuario
+      }
+
+      setGifts(parsed.gifts);
+      setStatus(`Premios cargados: ${parsed.gifts.length}`);
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error && uploadError.message
+          ? uploadError.message
+          : 'No se pudo procesar el archivo de premios.';
+      setError(message); // Mensaje de error mostrado al usuario
+      setStatus('');
     }
   };
 
@@ -259,6 +358,33 @@ function AdminPage() {
   // EXPORT
   // ------------------------------
 
+  // Botón para descargar template CSV de participantes
+  const downloadParticipantsTemplate = () => {
+    const blob = new Blob([`${PARTICIPANTS_TEMPLATE_HEADER}\n`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'template_participantes.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Botón para descargar template CSV de premios
+  const downloadGiftsTemplate = () => {
+    const blob = new Blob([`${GIFTS_TEMPLATE_HEADER}\n`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'template_premios.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Exportación del CSV de ganadores generado en el presorteo.
   const downloadCsv = (csvContent: string) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -468,6 +594,10 @@ function AdminPage() {
           <div className="dropzone">
             <h3>Participantes</h3>
             <p>Archivo CSV con los nombres en la primera columna.</p>
+            {/* Botón para descargar template oficial de CSV */}
+            <button className="secondary-button" onClick={downloadParticipantsTemplate}>
+              Descargar template participantes
+            </button>
             <input type="file" accept=".csv,text/csv" onChange={(e) => handleParticipantsUpload(e.target.files)} />
             <p className="hint">Cargados: {participants.length}</p>
           </div>
@@ -475,10 +605,21 @@ function AdminPage() {
           <div className="dropzone">
             <h3>Premios</h3>
             <p>CSV con columnas: categoría, premio.</p>
+            {/* Botón para descargar template oficial de CSV */}
+            <button className="secondary-button" onClick={downloadGiftsTemplate}>
+              Descargar template premios
+            </button>
             <input type="file" accept=".csv,text/csv" onChange={(e) => handleGiftsUpload(e.target.files)} />
             <p className="hint">Cargados: {gifts.length}</p>
           </div>
         </div>
+
+        {(error || warning) && (
+          <div className="upload-feedback">
+            {error && <p className="alert">{error}</p>}
+            {warning && <p className="alert">{warning}</p>}
+          </div>
+        )}
 
         {/* ACTIONS */}
         <div className="action-row">
@@ -500,6 +641,7 @@ function AdminPage() {
         </div>
 
         {status && <p className="hint">{status}</p>}
+        {warning && <p className="alert">{warning}</p>}
         {error && <p className="alert">{error}</p>}
         {isProcessing && <div className="loader" role="status" aria-label="procesando"></div>}
 
