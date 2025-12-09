@@ -250,7 +250,6 @@ function AdminPage() {
     setStatus('Cargando participantes...');
     setError('');
     setWarning('');
-
     try {
       const csvText = await readFile(fileList[0], (text) => text);
 
@@ -317,35 +316,57 @@ function AdminPage() {
     setError('');
     setWarning('');
 
-    try {
-      // FIX: Reparación de merge conflict
-      const csvText = await readFile(fileList[0], (text) => text);
+try {
+  // Leer CSV como texto
+  const csvText = await readFile(fileList[0], (text) => text);
 
-      // Validación de estructura del CSV
-      const headers = getCsvHeaders(csvText);
-      const expectedGiftHeaders = GIFTS_TEMPLATE_HEADER.split(',').map((h) => h.toLowerCase());
+  // Validación de estructura del CSV
+  const headers = getCsvHeaders(csvText);
+  const expectedGiftHeaders = GIFTS_TEMPLATE_HEADER.split(',').map((h) =>
+    h.toLowerCase()
+  );
 
-      if (!hasExactHeaders(headers, expectedGiftHeaders)) {
-        setError('El CSV de premios no coincide con el template oficial.'); // Mensaje de error mostrado al usuario
-        setStatus('');
-        return;
-      }
+  if (!hasExactHeaders(headers, expectedGiftHeaders)) {
+    setError('El CSV de premios no coincide con el template oficial.');
+    setStatus('');
+    return;
+  }
 
-      // FIX: Bloque corregido para evitar duplicación de variables
-      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as ParsedGiftsResult;
+  // Parseo final del CSV usando la función oficial
+  const parsed = (await readFile(fileList[0], parseGiftsCsv)) as ParsedGiftsResult;
 
-      // FIX: Se restaura la lógica correcta de validación
-      if (parsed.gifts.length === 0) {
-        setError('CSV inválido: no tiene premios válidos.'); // Mensaje de error mostrado al usuario
-        setStatus('');
-        return;
-      }
+  if (parsed.gifts.length === 0) {
+    setError('CSV inválido: no tiene premios válidos.');
+    setStatus('');
+    return;
+  }
 
-      if (parsed.discardedRows > 0) {
-        setWarning(`Se descartaron ${parsed.discardedRows} filas por campos vacíos.`); // Mensaje de error mostrado al usuario
-      }
+  // Almacenar premios válidos
+  setGifts(parsed.gifts);
 
-      setGifts(parsed.gifts);
+  if (parsed.discardedRows > 0) {
+    setWarning(`Se descartaron ${parsed.discardedRows} filas por campos vacíos.`);
+  }
+
+  setStatus(`Premios cargados: ${parsed.gifts.length}`);
+} catch (uploadError) {
+  const message =
+    uploadError instanceof Error && uploadError.message
+      ? uploadError.message
+      : 'No se pudo procesar el archivo de premios.';
+  setError(message);
+  setStatus('');
+}
+
+
+    
+
+setGifts(parsed.gifts);
+
+if (parsed.discardedRows > 0) {
+  setWarning(`Se descartaron ${parsed.discardedRows} filas por campos vacíos.`);
+}
+
       setStatus(`Premios cargados: ${parsed.gifts.length}`);
     } catch (uploadError) {
       const message =
@@ -360,32 +381,46 @@ function AdminPage() {
   // ------------------------------
   // EXPORT
   // ------------------------------
+// Botón para descargar template CSV de participantes
+const downloadParticipantsTemplate = () => {
+  const blob = new Blob([`${PARTICIPANTS_TEMPLATE_HEADER}\n`], {
+    type: 'text/csv;charset=utf-8;',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'template_participantes.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+};
 
-  // Botón para descargar template CSV de participantes
-  const downloadParticipantsTemplate = () => {
-    const blob = new Blob([`${PARTICIPANTS_TEMPLATE_HEADER}\n`], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'template_participantes.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+// Botón para descargar template CSV de premios
+const downloadGiftsTemplate = () => {
+  const blob = new Blob([`${GIFTS_TEMPLATE_HEADER}\n`], {
+    type: 'text/csv;charset=utf-8;',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'template_premios.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+};
+  
+const downloadGiftsTemplate = () => {
+  const blob = new Blob([`${GIFTS_TEMPLATE_HEADER}\n`], {
+    type: 'text/csv;charset=utf-8;',
+  });
 
-  // Botón para descargar template CSV de premios
-  const downloadGiftsTemplate = () => {
-    const blob = new Blob([`${GIFTS_TEMPLATE_HEADER}\n`], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'template_premios.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'template_premios.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+ 
 
   // Exportación del CSV de ganadores generado en el presorteo.
   const downloadCsv = (csvContent: string) => {
@@ -581,6 +616,11 @@ function AdminPage() {
             <div className="session-indicator" role="status">
               {user ? `Sesión activa: ${user}` : 'Sesión activa'}
             </div>
+
+            {/* Botón para descargar el template CSV de premios. */}
+            <button className="secondary-button" onClick={downloadGiftsTemplate}>
+              Descargar template CSV
+            </button>
 
             <button className="ghost-button" onClick={() => handleLogout()}>
               Cerrar sesión
