@@ -59,6 +59,7 @@ function AdminPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   const canPresort = useMemo(() => participants.length > 0 && gifts.length > 0, [participants, gifts]);
 
@@ -159,6 +160,15 @@ function AdminPage() {
     } catch (err) {
       handleLogout();
     }
+  }, []);
+
+  useEffect(() => {
+    const evaluateScreen = () => setIsSmallScreen(window.innerWidth < 1024);
+
+    evaluateScreen();
+    window.addEventListener('resize', evaluateScreen);
+
+    return () => window.removeEventListener('resize', evaluateScreen);
   }, []);
 
   // ------------------------------
@@ -396,32 +406,88 @@ function AdminPage() {
 
   if (!isLoggedIn) {
     return (
-      <div className="admin-page">
+      <div className="admin-page login-view">
+        {isSmallScreen && (
+          <div className="screen-alert" role="alert">
+            <div className="screen-alert__card">
+              <div className="screen-alert__icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M12 2C7.03 2 3 6.03 3 11v3.5A3.5 3.5 0 0 0 6.5 18h.08c.35 1.96 2.07 3.5 4.17 3.5h2.5c2.1 0 3.82-1.54 4.17-3.5h.08A3.5 3.5 0 0 0 21 14.5V11c0-4.97-4.03-9-9-9Zm1.25 16.75h-2.5v-2.5h2.5v2.5Zm0-4h-2.5V7.25h2.5V14.75Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <div>
+                <p className="eyebrow">Pantalla reducida</p>
+                <h3>Optimizado para pantallas grandes</h3>
+                <p>
+                  Esta aplicación funciona mejor en resoluciones de laptop o superiores. Amplía la
+                  ventana o usa un dispositivo con mayor resolución.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <section className="card login-card">
-          <h2>Login administrativo</h2>
-          <p>Usa Admin / Admin para acceder.</p>
+          <div className="login-header">
+            <div className="login-avatar" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.33 0-6 1.34-6 3v1h12v-1c0-1.66-2.67-3-6-3Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="eyebrow">Panel interno</p>
+              <h2>Acceso administrativo</h2>
+              <p className="login-subtitle">Usa Admin / Admin para acceder.</p>
+            </div>
+          </div>
 
-          <form onSubmit={handleLogin} className="form-grid">
-            <label className="form-field">
-              <span>Usuario</span>
-              <input
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
-                placeholder="Admin"
-              />
+          <form onSubmit={handleLogin} className="login-form">
+            <label className="input-group">
+              <span className="input-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-3.33 0-6 2-6 4.5V21h12v-2.5C18 16 15.33 14 12 14Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </span>
+              <div className="input-field">
+                <span className="input-label">Usuario</span>
+                <input
+                  value={user}
+                  onChange={(e) => setUser(e.target.value)}
+                  placeholder="Admin"
+                />
+              </div>
             </label>
 
-            <label className="form-field">
-              <span>Contraseña</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Admin"
-              />
+            <label className="input-group">
+              <span className="input-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M17 9V7a5 5 0 1 0-10 0v2H5v12h14V9h-2Zm-8 0V7a3 3 0 1 1 6 0v2H9Zm0 4h6v6H9v-6Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </span>
+              <div className="input-field">
+                <span className="input-label">Contraseña</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Admin"
+                />
+              </div>
             </label>
 
-            <button className="primary-button" type="submit">
+            <button className="primary-button login-button" type="submit">
               Entrar
             </button>
           </form>
