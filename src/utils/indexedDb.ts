@@ -99,6 +99,41 @@ export function winnersToCSV(winners: Winner[]): string {
   return [header, ...rows].join('\n');
 }
 
+const splitCsvLine = (line: string) => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      // Alternar modo de comillas para preservar comas internas como parte del campo.
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  result.push(current.trim());
+  return result;
+};
+
+const normalizeRowLength = (headers: string[], values: string[]) => {
+  if (values.length <= headers.length) return values;
+  // Si la línea trae comas de miles sin comillas, las combinamos en el último campo.
+  const head = values.slice(0, headers.length - 1);
+  const tail = values.slice(headers.length - 1).join(',');
+  return [...head, tail];
+};
+
 export function parseParticipantsCsv(csvText: string): Participant[] {
   const lines = csvText
     .split(/\r?\n/)
@@ -107,11 +142,12 @@ export function parseParticipantsCsv(csvText: string): Participant[] {
 
   if (lines.length === 0) return [];
 
-  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const headers = splitCsvLine(lines[0]).map((header) => header.toLowerCase());
   const dataLines = lines.slice(1);
 
   return dataLines.map((line, index) => {
-    const values = line.split(',').map((value) => value.trim());
+    const rawValues = splitCsvLine(line);
+    const values = normalizeRowLength(headers, rawValues);
     const row: Record<string, string> = {};
 
     headers.forEach((header, idx) => {
@@ -139,11 +175,12 @@ export function parseGiftsCsv(csvText: string): Gift[] {
 
   if (lines.length === 0) return [];
 
-  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const headers = splitCsvLine(lines[0]).map((header) => header.toLowerCase());
   const dataLines = lines.slice(1);
 
   return dataLines.map((line, index) => {
-    const values = line.split(',').map((value) => value.trim());
+    const rawValues = splitCsvLine(line);
+    const values = normalizeRowLength(headers, rawValues);
     const row: Record<string, string> = {};
 
     headers.forEach((header, idx) => {
