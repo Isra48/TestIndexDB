@@ -2,22 +2,37 @@ import { Link, Route, Routes } from 'react-router-dom';
 import AdminPage from './pages/AdminPage';
 import HomePage from './pages/HomePage';
 
-function App() {
+function AdminLayout() {
   return (
-    <div className="app-shell">
+    <>
       <header className="app-header">
         <div className="logo-text">Rifa corporativa</div>
         <nav className="nav-bar">
           <Link to="/">Inicio</Link>
-          <Link to="/admin">Administración</Link>
+          <Link to="/Admin">Administración</Link>
         </nav>
       </header>
       <main className="app-main">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
+        <AdminPage />
       </main>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <div className="app-shell">
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <main className="app-main">
+              <HomePage />
+            </main>
+          }
+        />
+        <Route path="/Admin" element={<AdminLayout />} />
+      </Routes>
     </div>
   );
 }
