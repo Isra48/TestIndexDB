@@ -238,11 +238,61 @@ function AdminPage() {
     setError('');
     setWarning('');
     try {
-      const parsed = (await readFile(fileList[0], parseParticipantsCsv)) as Participant[];
-      setParticipants(parsed);
-      setStatus(`Participantes cargados: ${parsed.length}`);
+      const csvText = await readFile(fileList[0], (text) => text);
+
+      // Validación de estructura del CSV
+      const headers = getCsvHeaders(csvText);
+      const expectedParticipantHeaders = PARTICIPANTS_TEMPLATE_HEADER.split(',').map((h) =>
+        h.toLowerCase()
+      );
+
+      if (!hasExactHeaders(headers, expectedParticipantHeaders)) {
+        setError('El CSV de participantes no tiene la estructura correcta.'); // Mensaje de error mostrado al usuario
+        setStatus('');
+        return;
+      }
+
+      const parsed = parseParticipantsCsv(csvText);
+      let discardedRows = 0;
+
+      const sanitizedParticipants = parsed.reduce<Participant[]>((acc, row, index) => {
+        // Validación de tipos y filas
+        const name = (row.name ?? '').trim();
+        const email = (row.email ?? '').trim();
+        const employeeNumberRaw = row.employeeNumber ?? '';
+        const employeeNumber = employeeNumberRaw?.toString().trim();
+
+        if (!name || !email || !employeeNumber) {
+          discardedRows += 1;
+          return acc;
+        }
+
+        acc.push({
+          ...row,
+          id: row.id || `${index}-${name}`,
+          name,
+          email,
+          employeeNumber,
+        });
+
+        return acc;
+      }, []);
+
+      if (sanitizedParticipants.length === 0) {
+        setError('Hay filas con datos incompletos o inválidos.'); // Mensaje de error mostrado al usuario
+        setStatus('');
+        return;
+      }
+
+      if (discardedRows > 0) {
+        setWarning('Se omitieron filas vacías en el CSV.'); // Mensaje de error mostrado al usuario
+      }
+
+      setParticipants(sanitizedParticipants);
+      setStatus(`Participantes cargados: ${sanitizedParticipants.length}`);
     } catch {
-      setError('No se pudieron leer los participantes.');
+      setError('No se pudieron leer los participantes.'); // Mensaje de error mostrado al usuario
+      setStatus('');
     }
   };
 
@@ -510,6 +560,10 @@ function AdminPage() {
           <div className="dropzone">
             <h3>Participantes</h3>
             <p>Archivo CSV con los nombres en la primera columna.</p>
+            {/* Botón para descargar template oficial de CSV */}
+            <button className="secondary-button" onClick={downloadParticipantsTemplate}>
+              Descargar template participantes
+            </button>
             <input type="file" accept=".csv,text/csv" onChange={(e) => handleParticipantsUpload(e.target.files)} />
             <p className="hint">Cargados: {participants.length}</p>
           </div>
@@ -517,10 +571,21 @@ function AdminPage() {
           <div className="dropzone">
             <h3>Premios</h3>
             <p>CSV con columnas: categoría, premio.</p>
+            {/* Botón para descargar template oficial de CSV */}
+            <button className="secondary-button" onClick={downloadGiftsTemplate}>
+              Descargar template premios
+            </button>
             <input type="file" accept=".csv,text/csv" onChange={(e) => handleGiftsUpload(e.target.files)} />
             <p className="hint">Cargados: {gifts.length}</p>
           </div>
         </div>
+
+        {(error || warning) && (
+          <div className="upload-feedback">
+            {error && <p className="alert">{error}</p>}
+            {warning && <p className="alert">{warning}</p>}
+          </div>
+        )}
 
         {/* ACTIONS */}
         <div className="action-row">
