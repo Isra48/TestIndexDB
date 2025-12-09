@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Gift, Winner } from '../types';
 import { readLastSavedAt, readWinners } from '../utils/indexedDb';
 
@@ -11,6 +11,9 @@ function HomePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | undefined>();
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const backgroundAudioRef = useRef<HTMLAudioElement | null>(null);
+  const winnerAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,6 +23,39 @@ function HomePage() {
       setLoading(false);
     };
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const backgroundAudio = new Audio('/audio/background.mp3');
+    backgroundAudio.loop = true;
+    backgroundAudio.preload = 'auto';
+    backgroundAudioRef.current = backgroundAudio;
+
+    const winnerAudio = new Audio('/audio/winner.mp3');
+    winnerAudio.preload = 'auto';
+    winnerAudioRef.current = winnerAudio;
+
+    const tryPlayOnInteraction = async () => {
+      if (backgroundAudioRef.current && !isMusicPlaying) {
+        try {
+          await backgroundAudioRef.current.play();
+          setIsMusicPlaying(true);
+        } catch (error) {
+          setIsMusicPlaying(false);
+        }
+      }
+    };
+
+    document.addEventListener('pointerdown', tryPlayOnInteraction, { once: true });
+    document.addEventListener('keydown', tryPlayOnInteraction, { once: true });
+
+    return () => {
+      backgroundAudioRef.current?.pause();
+      backgroundAudioRef.current = null;
+      winnerAudioRef.current = null;
+      document.removeEventListener('pointerdown', tryPlayOnInteraction);
+      document.removeEventListener('keydown', tryPlayOnInteraction);
+    };
   }, []);
 
   const categories = useMemo(() => Array.from(new Set(winners.map((winner) => winner.gift.category))), [winners]);
@@ -48,6 +84,11 @@ function HomePage() {
     setIsSearching(true);
     setHasSearched(false);
 
+    if (winnerAudioRef.current) {
+      winnerAudioRef.current.currentTime = 0;
+      winnerAudioRef.current.play().catch(() => undefined);
+    }
+
     const delay = Math.random() * (2500 - 1000) + 1000;
 
     setTimeout(() => {
@@ -60,6 +101,23 @@ function HomePage() {
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
     setSelectedPrize('');
+  };
+
+  const toggleMusic = async () => {
+    const backgroundAudio = backgroundAudioRef.current;
+    if (!backgroundAudio) return;
+
+    if (isMusicPlaying) {
+      backgroundAudio.pause();
+      setIsMusicPlaying(false);
+    } else {
+      try {
+        await backgroundAudio.play();
+        setIsMusicPlaying(true);
+      } catch (error) {
+        setIsMusicPlaying(false);
+      }
+    }
   };
 
   return (
@@ -137,6 +195,29 @@ function HomePage() {
           </div>
         </div>
       </section>
+
+      <button
+        type="button"
+        className="music-toggle"
+        onClick={toggleMusic}
+        aria-label={isMusicPlaying ? 'Pausar música de fondo' : 'Reproducir música de fondo'}
+        style={{
+          position: 'fixed',
+          bottom: '1.5rem',
+          right: '1.5rem',
+          width: '3.5rem',
+          height: '3.5rem',
+          borderRadius: '50%',
+          border: 'none',
+          backgroundColor: '#1f8aee',
+          color: '#fff',
+          fontSize: '1.4rem',
+          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.15)',
+          cursor: 'pointer',
+        }}
+      >
+        {isMusicPlaying ? '❚❚' : '▶'}
+      </button>
     </div>
   );
 }
