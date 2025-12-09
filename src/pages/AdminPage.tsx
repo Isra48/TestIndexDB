@@ -4,6 +4,7 @@ import {
   parseGiftsCsv,
   parseParticipantsCsv,
   presortWinners,
+  readWinners,
   saveWinners,
   winnersToCSV,
 } from '../utils/indexedDb';
@@ -14,6 +15,24 @@ const ADMIN_PASS = 'Admin';
 const SESSION_STORAGE_KEY = 'adminSession';
 const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
 const PAGE_SIZE = 30;
+
+// Formateador de costos para la tabla del Admin.
+// Acepta números o strings con comas y devuelve el valor con el símbolo de pesos y separadores.
+const formatCurrency = (value?: number | string) => {
+  if (value === undefined || value === null || value === '') return '—';
+
+  const sanitizedValue =
+    typeof value === 'number' ? value : value.toString().replace(/[^0-9.-]+/g, '');
+
+  if (typeof sanitizedValue === 'string' && sanitizedValue.trim() === '') return '—';
+
+  const numericValue =
+    typeof sanitizedValue === 'number' ? sanitizedValue : Number(sanitizedValue);
+
+  if (!Number.isFinite(numericValue)) return '—';
+
+  return `$${new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0 }).format(numericValue)}`;
+};
 
 type SessionData = {
   user: string;
@@ -158,6 +177,41 @@ function AdminPage() {
 
     return () => clearInterval(interval);
   }, [isLoggedIn, sessionStart]);
+
+  // Recupera la última tabla de ganadores guardada en IndexedDB al entrar al Admin.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const hydrateWinnersFromIndexedDb = async () => {
+      try {
+        const storedWinners = await readWinners();
+        if (storedWinners.length > 0) {
+          setWinners(storedWinners);
+          setCurrentPage(1);
+          setStatus('Ganadores restaurados desde IndexedDB.');
+        }
+      } catch {
+        setError('No se pudieron recuperar los ganadores guardados.');
+      }
+    };
+
+    hydrateWinnersFromIndexedDb();
+  }, [isLoggedIn]);
+
+  // Cada actualización de la tabla de ganadores se persiste automáticamente en IndexedDB.
+  useEffect(() => {
+    if (!isLoggedIn || winners.length === 0) return;
+
+    const persistWinnersInIndexedDb = async () => {
+      try {
+        await saveWinners(winners);
+      } catch {
+        setError('No se pudieron persistir los ganadores en IndexedDB.');
+      }
+    };
+
+    persistWinnersInIndexedDb();
+  }, [isLoggedIn, winners]);
 
   // ------------------------------
   // FILE PARSING / LOADERS
@@ -522,7 +576,7 @@ function AdminPage() {
                         <td>{winner.participant.email || '—'}</td>
                         <td className="winner-gift">{winner.gift.prize}</td>
                         <td>{winner.gift.category}</td>
-                        <td>{winner.gift.cost || '—'}</td>
+                        <td>{formatCurrency(winner.gift.cost)}</td>
                       </tr>
                     ))}
                   </tbody>
