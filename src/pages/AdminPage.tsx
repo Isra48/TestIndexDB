@@ -17,7 +17,6 @@ const SESSION_STORAGE_KEY = 'adminSession';
 const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
 const PAGE_SIZE = 30;
 const GIFTS_TEMPLATE_HEADER = 'categoria,producto,uds,costo';
-const PARTICIPANTS_TEMPLATE_HEADER = 'name,email,employeeNumber';
 
 // Formateador de costos para la tabla del Admin.
 // Acepta números o strings con comas y devuelve el valor con el símbolo de pesos y separadores.
@@ -221,18 +220,6 @@ function AdminPage() {
   // FILE PARSING / LOADERS
   // ------------------------------
 
-  const getCsvHeaders = (csvText: string) => {
-    const [firstLine] = csvText.split(/\r?\n/);
-    return (firstLine ?? '')
-      .split(',')
-      .map((header) => header.trim().toLowerCase());
-  };
-
-  const hasExactHeaders = (headers: string[], expected: string[]) => {
-    if (headers.length !== expected.length) return false;
-    return expected.every((header, index) => headers[index] === header);
-  };
-
   const readFile = <T,>(file: File, parser: (text: string) => T) => {
     return new Promise<T>((resolve, reject) => {
       const reader = new FileReader();
@@ -250,7 +237,6 @@ function AdminPage() {
     setStatus('Cargando participantes...');
     setError('');
     setWarning('');
-
     try {
       const csvText = await readFile(fileList[0], (text) => text);
 
@@ -316,40 +302,28 @@ function AdminPage() {
     setStatus('Cargando premios...');
     setError('');
     setWarning('');
-
     try {
-      const csvText = await readFile(fileList[0], (text) => text);
-
-      // Validación de estructura del CSV
-      const headers = getCsvHeaders(csvText);
-      const expectedGiftHeaders = GIFTS_TEMPLATE_HEADER.split(',').map((h) => h.toLowerCase());
-
-      if (!hasExactHeaders(headers, expectedGiftHeaders)) {
-        setError('El CSV de premios no coincide con el template oficial.'); // Mensaje de error mostrado al usuario
-        setStatus('');
-        return;
-      }
-
-      const parsed = parseGiftsCsv(csvText) as ParsedGiftsResult;
+      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as ParsedGiftsResult;
 
       if (parsed.gifts.length === 0) {
-        setError('Hay filas con datos incompletos o inválidos.'); // Mensaje de error mostrado al usuario
+        setError('CSV inválido: no tiene premios válidos.');
         setStatus('');
         return;
-      }
-
-      if (parsed.discardedRows > 0) {
-        setWarning('Se omitieron filas vacías en el CSV.'); // Mensaje de error mostrado al usuario
       }
 
       setGifts(parsed.gifts);
+
+      if (parsed.discardedRows > 0) {
+        setWarning(`Se descartaron ${parsed.discardedRows} filas por campos vacíos.`);
+      }
+
       setStatus(`Premios cargados: ${parsed.gifts.length}`);
     } catch (uploadError) {
       const message =
         uploadError instanceof Error && uploadError.message
           ? uploadError.message
           : 'No se pudo procesar el archivo de premios.';
-      setError(message); // Mensaje de error mostrado al usuario
+      setError(message);
       setStatus('');
     }
   };
@@ -358,20 +332,7 @@ function AdminPage() {
   // EXPORT
   // ------------------------------
 
-  // Botón para descargar template CSV de participantes
-  const downloadParticipantsTemplate = () => {
-    const blob = new Blob([`${PARTICIPANTS_TEMPLATE_HEADER}\n`], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'template_participantes.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // Botón para descargar template CSV de premios
+  // Generación del template oficial de premios (solo encabezados).
   const downloadGiftsTemplate = () => {
     const blob = new Blob([`${GIFTS_TEMPLATE_HEADER}\n`], {
       type: 'text/csv;charset=utf-8;',
@@ -379,7 +340,7 @@ function AdminPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'template_premios.csv';
+    link.download = 'template_sorteo.csv';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -578,6 +539,11 @@ function AdminPage() {
             <div className="session-indicator" role="status">
               {user ? `Sesión activa: ${user}` : 'Sesión activa'}
             </div>
+
+            {/* Botón para descargar el template CSV de premios. */}
+            <button className="secondary-button" onClick={downloadGiftsTemplate}>
+              Descargar template CSV
+            </button>
 
             <button className="ghost-button" onClick={() => handleLogout()}>
               Cerrar sesión
