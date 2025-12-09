@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   clearDatabase,
+  ParsedGiftsResult,
   parseGiftsCsv,
   parseParticipantsCsv,
   presortWinners,
@@ -15,6 +16,7 @@ const ADMIN_PASS = 'Admin';
 const SESSION_STORAGE_KEY = 'adminSession';
 const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
 const PAGE_SIZE = 30;
+const GIFTS_TEMPLATE_HEADER = 'categoria,producto,uds,costo';
 
 // Formateador de costos para la tabla del Admin.
 // Acepta números o strings con comas y devuelve el valor con el símbolo de pesos y separadores.
@@ -51,6 +53,7 @@ function AdminPage() {
 
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [sessionMessage, setSessionMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -217,8 +220,8 @@ function AdminPage() {
   // FILE PARSING / LOADERS
   // ------------------------------
 
-  const readFile = (file: File, parser: (text: string) => Participant[] | Gift[]) => {
-    return new Promise<Participant[] | Gift[]>((resolve, reject) => {
+  const readFile = <T,>(file: File, parser: (text: string) => T) => {
+    return new Promise<T>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const text = reader.result?.toString() ?? '';
@@ -233,6 +236,7 @@ function AdminPage() {
     if (!fileList?.length) return;
     setStatus('Cargando participantes...');
     setError('');
+    setWarning('');
     try {
       const parsed = (await readFile(fileList[0], parseParticipantsCsv)) as Participant[];
       setParticipants(parsed);
@@ -242,16 +246,35 @@ function AdminPage() {
     }
   };
 
+  // Validaciones reforzadas del CSV de premios antes de hidratar la UI.
   const handleGiftsUpload = async (fileList: FileList | null) => {
     if (!fileList?.length) return;
     setStatus('Cargando premios...');
     setError('');
+    setWarning('');
     try {
-      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as Gift[];
-      setGifts(parsed);
-      setStatus(`Premios cargados: ${parsed.length}`);
-    } catch {
-      setError('No se pudieron leer los premios.');
+      const parsed = (await readFile(fileList[0], parseGiftsCsv)) as ParsedGiftsResult;
+
+      if (parsed.gifts.length === 0) {
+        setError('CSV inválido: no tiene premios válidos.');
+        setStatus('');
+        return;
+      }
+
+      setGifts(parsed.gifts);
+
+      if (parsed.discardedRows > 0) {
+        setWarning(`Se descartaron ${parsed.discardedRows} filas por campos vacíos.`);
+      }
+
+      setStatus(`Premios cargados: ${parsed.gifts.length}`);
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error && uploadError.message
+          ? uploadError.message
+          : 'No se pudo procesar el archivo de premios.';
+      setError(message);
+      setStatus('');
     }
   };
 
@@ -259,6 +282,20 @@ function AdminPage() {
   // EXPORT
   // ------------------------------
 
+  // Generación del template oficial de premios (solo encabezados).
+  const downloadGiftsTemplate = () => {
+    const blob = new Blob([`${GIFTS_TEMPLATE_HEADER}\n`], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'template_sorteo.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Exportación del CSV de ganadores generado en el presorteo.
   const downloadCsv = (csvContent: string) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -453,6 +490,11 @@ function AdminPage() {
               {user ? `Sesión activa: ${user}` : 'Sesión activa'}
             </div>
 
+            {/* Botón para descargar el template CSV de premios. */}
+            <button className="secondary-button" onClick={downloadGiftsTemplate}>
+              Descargar template CSV
+            </button>
+
             <button className="ghost-button" onClick={() => handleLogout()}>
               Cerrar sesión
             </button>
@@ -500,6 +542,7 @@ function AdminPage() {
         </div>
 
         {status && <p className="hint">{status}</p>}
+        {warning && <p className="alert">{warning}</p>}
         {error && <p className="alert">{error}</p>}
         {isProcessing && <div className="loader" role="status" aria-label="procesando"></div>}
 
