@@ -66,6 +66,13 @@ body {
     linear-gradient(135deg, #b9242a, #561128 65%, #11030d);
 }
 
+.admin-layout {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .hero-card,
 .card {
   width: min(1200px, 100%);
@@ -330,6 +337,13 @@ body {
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.winners-table .winner-cost {
+  text-align: right;
+  font-weight: 700;
+  color: #ffe6b3;
+  white-space: nowrap;
 }
 
 .winners-table tbody tr:hover {

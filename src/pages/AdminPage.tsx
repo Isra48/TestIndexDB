@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   clearDatabase,
   parseGiftsCsv,
@@ -17,21 +18,20 @@ const SESSION_DURATION_MS = 10 * 60 * 1000; // 10 minutos
 const PAGE_SIZE = 30;
 
 // Formateador de costos para la tabla del Admin.
-// Acepta números o strings con comas y devuelve el valor con el símbolo de pesos y separadores.
 const formatCurrency = (value?: number | string) => {
   if (value === undefined || value === null || value === '') return '—';
 
-  const sanitizedValue =
-    typeof value === 'number' ? value : value.toString().replace(/[^0-9.-]+/g, '');
-
-  if (typeof sanitizedValue === 'string' && sanitizedValue.trim() === '') return '—';
-
   const numericValue =
-    typeof sanitizedValue === 'number' ? sanitizedValue : Number(sanitizedValue);
+    typeof value === 'number'
+      ? value
+      : Number(value.toString().replace(/[^0-9.-]+/g, ''));
 
   if (!Number.isFinite(numericValue)) return '—';
 
-  return `$${new Intl.NumberFormat('es-MX', { minimumFractionDigits: 0 }).format(numericValue)}`;
+  return numericValue.toLocaleString('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  });
 };
 
 type SessionData = {
@@ -394,232 +394,238 @@ function AdminPage() {
   // LOGIN VIEW
   // ------------------------------
 
-  if (!isLoggedIn) {
-    return (
-      <div className="admin-page">
-        <section className="card login-card">
-          <h2>Login administrativo</h2>
-          <p>Usa Admin / Admin para acceder.</p>
+  return (
+    <div className="admin-layout">
+      <header className="app-header">
+        <div className="logo-text">Rifa corporativa</div>
+        <nav className="nav-bar">
+          <Link to="/">Inicio</Link>
+          <Link to="/Admin">Administración</Link>
+        </nav>
+      </header>
 
-          <form onSubmit={handleLogin} className="form-grid">
-            <label className="form-field">
-              <span>Usuario</span>
-              <input
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
-                placeholder="Admin"
-              />
-            </label>
+      {!isLoggedIn && (
+        <div className="admin-page">
+          <section className="card login-card">
+            <h2>Login administrativo</h2>
+            <p>Usa Admin / Admin para acceder.</p>
 
-            <label className="form-field">
-              <span>Contraseña</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Admin"
-              />
-            </label>
+            <form onSubmit={handleLogin} className="form-grid">
+              <label className="form-field">
+                <span>Usuario</span>
+                <input
+                  value={user}
+                  onChange={(e) => setUser(e.target.value)}
+                  placeholder="Admin"
+                />
+              </label>
 
-            <button className="primary-button" type="submit">
-              Entrar
-            </button>
-          </form>
+              <label className="form-field">
+                <span>Contraseña</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Admin"
+                />
+              </label>
 
-          {sessionMessage && <p className="alert">{sessionMessage}</p>}
-          {error && <p className="alert">{error}</p>}
-        </section>
+              <button className="primary-button" type="submit">
+                Entrar
+              </button>
+            </form>
+
+            {sessionMessage && <p className="alert">{sessionMessage}</p>}
+            {error && <p className="alert">{error}</p>}
+          </section>
+        </div>
+      )}
+
+          {isLoggedIn && (
+            <div className="admin-page">
+              <section className="card upload-card">
+
+              {/* HEADER */}
+              <div className="card-header">
+                <div>
+                  <h2>Administración de la rifa</h2>
+                  <p>Sube participantes y premios en CSV para generar el presorteo.</p>
+                </div>
+
+                <div className="actions-inline">
+                  <div className="session-indicator" role="status">
+                    {user ? `Sesión activa: ${user}` : 'Sesión activa'}
+                  </div>
+
+                  <button className="ghost-button" onClick={() => handleLogout()}>
+                    Cerrar sesión
+                  </button>
+
+                  <button className="ghost-button" onClick={handleReset}>
+                    Resetear base local
+                  </button>
+                </div>
+              </div>
+
+              {/* UPLOADS */}
+              <div className="upload-grid">
+                <div className="dropzone">
+                  <h3>Participantes</h3>
+                  <p>Archivo CSV con los nombres en la primera columna.</p>
+                  <input type="file" accept=".csv,text/csv" onChange={(e) => handleParticipantsUpload(e.target.files)} />
+                  <p className="hint">Cargados: {participants.length}</p>
+                </div>
+
+                <div className="dropzone">
+                  <h3>Premios</h3>
+                  <p>CSV con columnas: categoría, premio.</p>
+                  <input type="file" accept=".csv,text/csv" onChange={(e) => handleGiftsUpload(e.target.files)} />
+                  <p className="hint">Cargados: {gifts.length}</p>
+                </div>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="action-row">
+                <button
+                  className="primary-button"
+                  onClick={handlePresort}
+                  disabled={!canPresort || isProcessing}
+                >
+                  {isProcessing ? 'Procesando...' : 'Generar ganadores'}
+                </button>
+
+                <button
+                  className="secondary-button"
+                  onClick={handleSave}
+                  disabled={winners.length === 0 || isSaving}
+                >
+                  {isSaving ? 'Guardando...' : 'Exportar CSV y guardar'}
+                </button>
+              </div>
+
+              {status && <p className="hint">{status}</p>}
+              {error && <p className="alert">{error}</p>}
+              {isProcessing && <div className="loader" role="status" aria-label="procesando"></div>}
+
+              {/* WINNERS TABLE */}
+              <div className="winners-preview">
+
+                <div className="results-header">
+                  <h3>Ganadores generados</h3>
+                  <span className="badge">{filteredWinners.length}</span>
+                </div>
+
+                {/* FILTERS */}
+                <div className="filters-row">
+                  <label className="filter-control">
+                    <span className="hint">Buscar por nombre</span>
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder="Nombre del participante"
+                    />
+                  </label>
+
+                  <label className="filter-control">
+                    <span className="hint">Categoría</span>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                    >
+                      <option value="all">Todas</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="filter-control">
+                    <span className="hint">Orden alfabético</span>
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => handleSortChange(e.target.value as 'asc' | 'desc')}
+                    >
+                      <option value="asc">A → Z</option>
+                      <option value="desc">Z → A</option>
+                    </select>
+                  </label>
+                </div>
+
+                {/* TABLE */}
+                <div className="table-wrapper">
+                  {paginatedWinners.length === 0 && !isProcessing && (
+                    <p className="hint">Aún no se han generado ganadores.</p>
+                  )}
+
+                  {paginatedWinners.length > 0 && (
+                    <div className="results-list compact">
+                      <table className="winners-table">
+                        <thead>
+                          <tr>
+                            <th>Participante</th>
+                            <th>Número de empleado</th>
+                            <th>Email</th>
+                            <th>Premio</th>
+                            <th>Categoría</th>
+                            <th className="winner-cost">Costo</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {paginatedWinners.map((winner) => (
+                            <tr key={winner.id}>
+                              <td className="winner-name">{winner.participant.name}</td>
+                              <td>{winner.participant.employeeNumber || '—'}</td>
+                              <td>{winner.participant.email || '—'}</td>
+                              <td className="winner-gift">{winner.gift.prize}</td>
+                              <td>{winner.gift.category}</td>
+                              <td className="winner-cost">{formatCurrency(winner.gift.cost)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {isProcessing && (
+                    <div className="table-overlay" role="status" aria-label="procesando sorteo">
+                      <div className="loader" />
+                      <span className="hint">Generando ganadores...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* PAGINATION */}
+                {paginatedWinners.length > 0 && (
+                  <div className="pagination-row">
+                    <button
+                      className="secondary-button"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                    >
+                      Anterior
+                    </button>
+
+                    <span className="hint">
+                      Página {currentPage} de {totalPages} ({filteredWinners.length} resultados)
+                    </span>
+
+                    <button
+                      className="secondary-button"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages || filteredWinners.length === 0}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
       </div>
     );
   }
-
-  // ------------------------------
-  // ADMIN UI
-  // ------------------------------
-
-  return (
-    <div className="admin-page">
-      <section className="card upload-card">
-
-        {/* HEADER */}
-        <div className="card-header">
-          <div>
-            <h2>Administración de la rifa</h2>
-            <p>Sube participantes y premios en CSV para generar el presorteo.</p>
-          </div>
-
-          <div className="actions-inline">
-            <div className="session-indicator" role="status">
-              {user ? `Sesión activa: ${user}` : 'Sesión activa'}
-            </div>
-
-            <button className="ghost-button" onClick={() => handleLogout()}>
-              Cerrar sesión
-            </button>
-
-            <button className="ghost-button" onClick={handleReset}>
-              Resetear base local
-            </button>
-          </div>
-        </div>
-
-        {/* UPLOADS */}
-        <div className="upload-grid">
-          <div className="dropzone">
-            <h3>Participantes</h3>
-            <p>Archivo CSV con los nombres en la primera columna.</p>
-            <input type="file" accept=".csv,text/csv" onChange={(e) => handleParticipantsUpload(e.target.files)} />
-            <p className="hint">Cargados: {participants.length}</p>
-          </div>
-
-          <div className="dropzone">
-            <h3>Premios</h3>
-            <p>CSV con columnas: categoría, premio.</p>
-            <input type="file" accept=".csv,text/csv" onChange={(e) => handleGiftsUpload(e.target.files)} />
-            <p className="hint">Cargados: {gifts.length}</p>
-          </div>
-        </div>
-
-        {/* ACTIONS */}
-        <div className="action-row">
-          <button
-            className="primary-button"
-            onClick={handlePresort}
-            disabled={!canPresort || isProcessing}
-          >
-            {isProcessing ? 'Procesando...' : 'Generar ganadores'}
-          </button>
-
-          <button
-            className="secondary-button"
-            onClick={handleSave}
-            disabled={winners.length === 0 || isSaving}
-          >
-            {isSaving ? 'Guardando...' : 'Exportar CSV y guardar'}
-          </button>
-        </div>
-
-        {status && <p className="hint">{status}</p>}
-        {error && <p className="alert">{error}</p>}
-        {isProcessing && <div className="loader" role="status" aria-label="procesando"></div>}
-
-        {/* WINNERS TABLE */}
-        <div className="winners-preview">
-
-          <div className="results-header">
-            <h3>Ganadores generados</h3>
-            <span className="badge">{filteredWinners.length}</span>
-          </div>
-
-          {/* FILTERS */}
-          <div className="filters-row">
-            <label className="filter-control">
-              <span className="hint">Buscar por nombre</span>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Nombre del participante"
-              />
-            </label>
-
-            <label className="filter-control">
-              <span className="hint">Categoría</span>
-              <select
-                value={selectedCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-              >
-                <option value="all">Todas</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="filter-control">
-              <span className="hint">Orden alfabético</span>
-              <select
-                value={sortOrder}
-                onChange={(e) => handleSortChange(e.target.value as 'asc' | 'desc')}
-              >
-                <option value="asc">A → Z</option>
-                <option value="desc">Z → A</option>
-              </select>
-            </label>
-          </div>
-
-          {/* TABLE */}
-          <div className="table-wrapper">
-            {paginatedWinners.length === 0 && !isProcessing && (
-              <p className="hint">Aún no se han generado ganadores.</p>
-            )}
-
-            {paginatedWinners.length > 0 && (
-              <div className="results-list compact">
-                <table className="winners-table">
-                  <thead>
-                    <tr>
-                      <th>Participante</th>
-                      <th>Número de empleado</th>
-                      <th>Email</th>
-                      <th>Premio</th>
-                      <th>Categoría</th>
-                      <th>Costo</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {paginatedWinners.map((winner) => (
-                      <tr key={winner.id}>
-                        <td className="winner-name">{winner.participant.name}</td>
-                        <td>{winner.participant.employeeNumber || '—'}</td>
-                        <td>{winner.participant.email || '—'}</td>
-                        <td className="winner-gift">{winner.gift.prize}</td>
-                        <td>{winner.gift.category}</td>
-                        <td>{formatCurrency(winner.gift.cost)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {isProcessing && (
-              <div className="table-overlay" role="status" aria-label="procesando sorteo">
-                <div className="loader" />
-                <span className="hint">Generando ganadores...</span>
-              </div>
-            )}
-          </div>
-
-          {/* PAGINATION */}
-          {paginatedWinners.length > 0 && (
-            <div className="pagination-row">
-              <button
-                className="secondary-button"
-                onClick={goToPreviousPage}
-                disabled={currentPage === 1}
-              >
-                Anterior
-              </button>
-
-              <span className="hint">
-                Página {currentPage} de {totalPages} ({filteredWinners.length} resultados)
-              </span>
-
-              <button
-                className="secondary-button"
-                onClick={goToNextPage}
-                disabled={currentPage === totalPages || filteredWinners.length === 0}
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
 
 export default AdminPage;
