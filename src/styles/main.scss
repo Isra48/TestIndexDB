@@ -14,11 +14,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: 
-   linear-gradient(rgba(0, 0, 0, 0.191), rgba(0, 0, 0, 0.514)), /* oscurece */
-  url('/background2.jpg') center/cover no-repeat,
-    linear-gradient(135deg, #cc252b, #8c1b2f);
-
+  background: none;
 }
 
 #root {
@@ -29,6 +25,17 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  /* fondo global fijo*/
+  background: 
+   linear-gradient(rgba(0, 0, 0, 0.191), rgba(0, 0, 0, 0.514)), /* oscurece */
+  url('/background2.jpg') center/cover no-repeat,
+    linear-gradient(135deg, #cc252b, #8c1b2f);
+    background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat;
+  position: relative;
+
+
 }
 
 .app-header {
@@ -351,6 +358,12 @@ body {
 .admin-page {
   width: min(1100px, 100%);
 }
+.app-main.admin-main-background {
+  min-height: 100vh;
+  overflow: auto;
+}
+
+
 
 .login-view {
   min-height: calc(100vh - 64px);
