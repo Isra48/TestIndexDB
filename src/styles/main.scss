@@ -97,7 +97,7 @@ body {
 
 
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 550px 1fr;
   gap: 32px;
 
 
@@ -112,8 +112,18 @@ body {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
+
+
+.esfera-image {
+  width: 100%;
+  max-width: 340px;        /* ajustable */
+  margin: 16px auto 0;     /* centrada */
+  display: block;
+  opacity: 0.9;            /* suaviza la imagen */
+}
+
 
 .panel-title {
   margin: 0 0 4px;

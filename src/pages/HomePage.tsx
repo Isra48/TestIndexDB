@@ -158,11 +158,17 @@ function HomePage() {
             onClick={applyFilters}
             disabled={loading || winners.length === 0 || !selectedCategory || !selectedPrize || isSearching}
           >
-            Sortear 
+            Sortear
           </button>
           {/*  {lastSavedAt && <p className="hint">Datos actualizados: {new Date(lastSavedAt).toLocaleString()}</p>} */}
           {/*} {loading && <p className="hint">Cargando datos guardados...</p>} */}
           {/* {!loading && winners.length === 0 && <p className="alert">No hay ganadores guardados. Cárgalos desde la administración.</p>} */}
+
+          <img
+            src="/esfera.png"
+            alt="Esfera"
+            className="esfera-image"
+          />
         </div>
 
         <div className="results-panel">
