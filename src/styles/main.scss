@@ -645,6 +645,14 @@ select option {
   background: rgba(0, 0, 0, 0.35);
 }
 
+.lottie-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 32px 0;
+  height: 280px;
+}
+
 .winners-table {
   width: 100%;
   border-collapse: collapse;

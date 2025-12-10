@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Lottie from 'lottie-react';
 import {
   clearDatabase,
   parseGiftsCsv,
@@ -9,6 +10,7 @@ import {
   winnersToCSV,
 } from '../utils/indexedDb';
 import { Gift, Participant, Winner } from '../types';
+import winnersAnimation from '../../public/animations/winners.json';
 
 const ADMIN_USER = 'Admin';
 const ADMIN_PASS = 'Admin';
@@ -58,6 +60,7 @@ function AdminPage() {
   const [sessionMessage, setSessionMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showLottie, setShowLottie] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -93,6 +96,7 @@ function AdminPage() {
     setSessionMessage(message);
     setIsProcessing(false);
     setIsSaving(false);
+    setShowLottie(true);
   };
 
   // Logout configurable (manual o expiración)
@@ -226,6 +230,12 @@ function AdminPage() {
 
     persistWinnersInIndexedDb();
   }, [isLoggedIn, winners]);
+
+  useEffect(() => {
+    if (winners.length > 0) {
+      setShowLottie(true);
+    }
+  }, [winners]);
 
   // ------------------------------
   // FILE PARSING / LOADERS
@@ -620,11 +630,28 @@ function AdminPage() {
 
           {/* TABLE */}
           <div className="table-wrapper">
-            {paginatedWinners.length === 0 && !isProcessing && (
+            {isProcessing && (
+              <div className="table-overlay" role="status" aria-label="procesando sorteo">
+                <div className="loader" />
+                <span className="hint">Generando ganadores...</span>
+              </div>
+            )}
+
+            {!isProcessing && showLottie && winners.length > 0 && (
+              <div className="lottie-container">
+                <Lottie
+                  animationData={winnersAnimation}
+                  loop={false}
+                  onComplete={() => setShowLottie(false)}
+                />
+              </div>
+            )}
+
+            {!isProcessing && !showLottie && paginatedWinners.length === 0 && (
               <p className="hint">Aún no se han generado ganadores.</p>
             )}
 
-            {paginatedWinners.length > 0 && (
+            {!isProcessing && !showLottie && paginatedWinners.length > 0 && (
               <div className="results-list compact">
                 <table className="winners-table">
                   <thead>
@@ -651,13 +678,6 @@ function AdminPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
-
-            {isProcessing && (
-              <div className="table-overlay" role="status" aria-label="procesando sorteo">
-                <div className="loader" />
-                <span className="hint">Generando ganadores...</span>
               </div>
             )}
           </div>
