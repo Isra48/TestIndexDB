@@ -190,7 +190,7 @@ function HomePage() {
             {isSearching && (
               <div className="table-overlay">
                 <div className="loader" />
-                <p className="hint">Simulando sorteo...</p>
+                <p className="hint">Buscando ganadores...</p>
               </div>
             )}
 
