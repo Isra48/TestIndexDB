@@ -12,7 +12,8 @@ function AdminLayout() {
           <Link to="/Admin">Administración</Link>
         </nav>
       </header>
-      <main className="app-main">
+      {/* Fondo fijo exclusivo del Admin para evitar que el background crezca con la tabla */}
+      <main className="app-main admin-main-background">
         <AdminPage />
       </main>
     </>

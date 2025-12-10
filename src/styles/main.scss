@@ -244,6 +244,16 @@ body {
   width: min(1100px, 100%);
 }
 
+/* Fijamos el fondo sólo en el contenedor principal del Admin para que no crezca con la tabla.
+   Esta clase se aplica únicamente en AdminLayout, evitando afectar otras vistas. */
+.app-main.admin-main-background {
+  min-height: 100vh;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+  overflow: auto;
+}
+
 .card-header {
   display: flex;
   align-items: center;
