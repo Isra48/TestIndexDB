@@ -124,7 +124,12 @@ function HomePage() {
     <div className="home-page">
       <section className="hero-card">
         <div className="filter-panel">
-          <h2 className="panel-title">Filtra y encuentra los ganadores</h2>
+            <img
+            src="/title.png"
+            alt="Esfera"
+            className="esfera-image"
+          />
+          {/*<h2 className="panel-title">Filtra y encuentra los ganadores</h2> */}
           <label className="form-field">
             <span>Categoría</span>
             <select value={selectedCategory} onChange={(e) => handleCategoryChange(e.target.value)}>
@@ -164,17 +169,22 @@ function HomePage() {
           {/*} {loading && <p className="hint">Cargando datos guardados...</p>} */}
           {/* {!loading && winners.length === 0 && <p className="alert">No hay ganadores guardados. Cárgalos desde la administración.</p>} */}
 
-          <img
+          {/*  <img
             src="/esfera.png"
             alt="Esfera"
             className="esfera-image"
           />
+          */}
         </div>
 
         <div className="results-panel">
           <div className="results-header">
-            <h3>Ganadores</h3>
-            <span className="badge">{filteredWinners.length}</span>
+        
+            <div className="results-title-row">
+              <h1>Ganadores:</h1>
+              <span className="badge">{filteredWinners.length}</span>
+            </div>
+
           </div>
           <div className="results-list">
             {isSearching && (
@@ -200,7 +210,13 @@ function HomePage() {
               ))}
           </div>
         </div>
+        
       </section>
+       <img
+              src="/logos.png"
+              alt="logo sponsors"
+              className="logo-sponsors-image"
+            />
 
       <button
         type="button"

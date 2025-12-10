@@ -15,8 +15,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background: 
-   linear-gradient(rgba(0, 0, 0, 0.191), rgba(0, 0, 0, 0.2)), /* oscurece */
-  url('/background.jpg') center/cover no-repeat,
+   linear-gradient(rgba(0, 0, 0, 0.191), rgba(0, 0, 0, 0.514)), /* oscurece */
+  url('/background2.jpg') center/cover no-repeat,
     linear-gradient(135deg, #cc252b, #8c1b2f);
 
 }
@@ -118,11 +118,26 @@ body {
 
 .esfera-image {
   width: 100%;
-  max-width: 340px;        /* ajustable */
+  max-width: 400px;        /* ajustable */
   margin: 16px auto 0;     /* centrada */
   display: block;
   opacity: 0.9;            /* suaviza la imagen */
 }
+
+
+.title-image {
+  width: 100%;
+  max-width: 340px;        /* ajustable */
+  margin: 10px auto 0;     /* centrada */
+  display: block;
+           /* suaviza la imagen */
+}
+
+
+
+
+
+
 
 
 .panel-title {
@@ -247,10 +262,25 @@ body {
 
 .results-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
 }
+
+.logo-sponsors-image {
+  display: block;       /* permite usar margin auto */
+  margin: 3em auto;     /* centra horizontalmente */
+  width: 40%;
+  height: auto;
+}
+
+.results-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
 
 .results-list {
   display: flex;
