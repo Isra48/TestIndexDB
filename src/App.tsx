@@ -12,7 +12,7 @@ function AdminLayout() {
           <Link to="/Admin">Administración</Link>
         </nav>
       </header>
-      <main className="app-main">
+      <main className="app-main admin-main-background">
         <AdminPage />
       </main>
     </>
