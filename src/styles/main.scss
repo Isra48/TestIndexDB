@@ -167,6 +167,53 @@ body {
   color: #f7f7f7;
 }
 
+/*
+ * Ajuste multiplataforma para dropdowns en Windows/Chrome/Edge.
+ * Mantiene el estilo oscuro existente sin modificar bordes ni tipografías,
+ * asegurando que el <select> y sus <option> no adopten fondos o textos blancos
+ * impuestos por estilos nativos del SO/navegador.
+ */
+select {
+  color: #f7f7f7 !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  -webkit-appearance: none;
+  appearance: none;
+  forced-color-adjust: none;
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+select option {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+  forced-color-adjust: none;
+}
+
+@supports (-ms-ime-align: auto) {
+  select,
+  select option {
+    background-color: #121212 !important;
+    color: #ffffff !important;
+  }
+}
+
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  select option {
+    background-color: #121212 !important;
+    color: #ffffff !important;
+  }
+}
+
+@-moz-document url-prefix() {
+  select,
+  select option {
+    background-color: #121212 !important;
+    color: #ffffff !important;
+  }
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
