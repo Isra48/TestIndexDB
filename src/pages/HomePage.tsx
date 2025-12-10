@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { Gift, Winner } from '../types';
 import { readLastSavedAt, readWinners } from '../utils/indexedDb';
 
@@ -12,6 +12,7 @@ function HomePage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | undefined>();
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(true);
   const backgroundAudioRef = useRef<HTMLAudioElement | null>(null);
   const winnerAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -58,6 +59,21 @@ function HomePage() {
     };
   }, []);
 
+ useEffect(() => {
+      const interval = setInterval(() => {
+        setIsAnimating(true);
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 2000); // Duración de cada animación cíclica
+      }, 3000); // Intervalo entre repeticiones
+  
+      return () => clearInterval(interval);
+    }, []);
+
+
+
+
+
   const categories = useMemo(() => Array.from(new Set(winners.map((winner) => winner.gift.category))), [winners]);
 
   const prizesForCategory = useMemo(() => {
@@ -83,6 +99,7 @@ function HomePage() {
 
     setIsSearching(true);
     setHasSearched(false);
+    setIsAnimating(true);
 
     if (winnerAudioRef.current) {
       winnerAudioRef.current.currentTime = 0;
@@ -124,10 +141,13 @@ function HomePage() {
     <div className="home-page">
       <section className="hero-card">
         <div className="filter-panel">
-            <img
+          <img
             src="/title.png"
             alt="Esfera"
-            className="esfera-image"
+            className={`esfera-image animate__animated${isAnimating ? ' animate__swing' : ''
+              }`}
+            style={{ '--animate-duration': '2s' } as CSSProperties}
+          
           />
           {/*<h2 className="panel-title">Filtra y encuentra los ganadores</h2> */}
           <label className="form-field">
@@ -179,7 +199,7 @@ function HomePage() {
 
         <div className="results-panel">
           <div className="results-header">
-        
+
             <div className="results-title-row">
               <h1>Ganadores:</h1>
               <span className="badge">{filteredWinners.length}</span>
@@ -210,13 +230,13 @@ function HomePage() {
               ))}
           </div>
         </div>
-        
+
       </section>
-       <img
-              src="/logos.png"
-              alt="logo sponsors"
-              className="logo-sponsors-image"
-            />
+      <img
+        src="/logos.png"
+        alt="logo sponsors"
+        className="logo-sponsors-image"
+      />
 
       <button
         type="button"
