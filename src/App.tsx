@@ -1,4 +1,5 @@
 import { Link, Route, Routes } from 'react-router-dom';
+import ScreenSizeOverlay from './ScreenSizeOverlay';
 import AdminPage from './pages/AdminPage';
 import HomePage from './pages/HomePage';
 
@@ -22,6 +23,8 @@ function AdminLayout() {
 function App() {
   return (
     <div className="app-shell">
+      {/* Overlay global montado al nivel raíz para cubrir toda la app en pantallas pequeñas. */}
+      <ScreenSizeOverlay />
       <Routes>
         <Route
           path="/"
