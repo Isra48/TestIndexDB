@@ -158,11 +158,11 @@ function HomePage() {
             onClick={applyFilters}
             disabled={loading || winners.length === 0 || !selectedCategory || !selectedPrize || isSearching}
           >
-            Buscar ganadores
+            Sortear 
           </button>
-          {lastSavedAt && <p className="hint">Datos actualizados: {new Date(lastSavedAt).toLocaleString()}</p>}
-          {loading && <p className="hint">Cargando datos guardados...</p>}
-          {!loading && winners.length === 0 && <p className="alert">No hay ganadores guardados. Cárgalos desde la administración.</p>}
+          {/*  {lastSavedAt && <p className="hint">Datos actualizados: {new Date(lastSavedAt).toLocaleString()}</p>} */}
+          {/*} {loading && <p className="hint">Cargando datos guardados...</p>} */}
+          {/* {!loading && winners.length === 0 && <p className="alert">No hay ganadores guardados. Cárgalos desde la administración.</p>} */}
         </div>
 
         <div className="results-panel">

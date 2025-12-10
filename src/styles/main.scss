@@ -153,10 +153,54 @@ body {
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #ff8f5a, #ff4d67);
-  color: #0c0c0c;
-  box-shadow: 0 10px 30px rgba(255, 111, 97, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 16px;
+
+  padding: 0.7em 1.4em;
+  color: #ffffff;
+
+  /* Nuevo gradiente verde */
+  background: linear-gradient(
+    0deg,
+    rgba(20, 167, 62, 1) 0%,
+    rgba(102, 247, 113, 1) 100%
+  );
+
+  border: none;
+  border-radius: 20em;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+
+  /* Sombra adaptada */
+  box-shadow: 0 0.7em 1.5em -0.5em rgba(20, 167, 62, 0.55);
+
+  transition: box-shadow 180ms ease, transform 120ms ease;
 }
+
+.primary-button:hover:not(:disabled) {
+  box-shadow: 0 0.5em 1.5em -0.5em rgba(20, 167, 62, 0.55);
+  transform: translateY(-2px);
+}
+
+.primary-button:active:not(:disabled) {
+  box-shadow: 0 0.3em 1em -0.5em rgba(20, 167, 62, 0.55);
+  transform: translateY(0);
+}
+
+.primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+
 
 .secondary-button {
   background: rgba(255, 255, 255, 0.1);
