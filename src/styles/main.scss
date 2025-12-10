@@ -1,9 +1,11 @@
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #f7f7f7;
-  background: linear-gradient(135deg, #cc252b, #8c1b2f);
+
   min-height: 100vh;
-}
+
+
+} 
 
 * {
   box-sizing: border-box;
@@ -12,7 +14,11 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0d0d0f;
+  background: 
+   linear-gradient(rgba(0, 0, 0, 0.191), rgba(0, 0, 0, 0.514)), /* oscurece */
+  url('/background2.jpg') center/cover no-repeat,
+    linear-gradient(135deg, #cc252b, #8c1b2f);
+
 }
 
 #root {
@@ -60,26 +66,44 @@ body {
   flex: 1;
   display: flex;
   justify-content: center;
-  padding: 32px;
-  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 30%),
-    radial-gradient(circle at 80% 10%, rgba(0, 0, 0, 0.25), transparent 40%),
-    linear-gradient(135deg, #b9242a, #561128 65%, #11030d);
+  align-items: center; 
+  min-height: 100vh;
+
+
 }
 
 .hero-card,
+
+
+
 .card {
   width: min(1200px, 100%);
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  height: 100%;
+  background:  #ffffff06;;
+  border:1px solid rgba(255, 255, 255, 0.026);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 10px #00000080;
 }
 
 .hero-card {
+ 
+   width: 95vw;  /* 85% del ancho de la pantalla */
+   max-width: 1600px;   /* límite en pantallas grandes */
+   min-width: 900px;
+   height: 85vh;        /* 70% del alto del viewport */
+  max-height: 900px; 
+   min-height: 500px;  /* límite para LED walls */
+
+
   display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 24px;
+  grid-template-columns: 550px 1fr;
+  gap: 32px;
+
+
+  
+  
+
 }
 
 .filter-panel {
@@ -88,8 +112,33 @@ body {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
+
+
+.esfera-image {
+  width: 100%;
+  max-width: 400px;        /* ajustable */
+  margin: 16px auto 0;     /* centrada */
+  display: block;
+  opacity: 0.9;            /* suaviza la imagen */
+}
+
+
+.title-image {
+  width: 100%;
+  max-width: 340px;        /* ajustable */
+  margin: 10px auto 0;     /* centrada */
+  display: block;
+           /* suaviza la imagen */
+}
+
+
+
+
+
+
+
 
 .panel-title {
   margin: 0 0 4px;
@@ -129,10 +178,54 @@ body {
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #ff8f5a, #ff4d67);
-  color: #0c0c0c;
-  box-shadow: 0 10px 30px rgba(255, 111, 97, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 16px;
+
+  padding: 0.7em 1.4em;
+  color: #ffffff;
+
+  /* Nuevo gradiente verde */
+  background: linear-gradient(
+    0deg,
+    rgba(20, 167, 62, 1) 0%,
+    rgba(102, 247, 113, 1) 100%
+  );
+
+  border: none;
+  border-radius: 20em;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+
+  /* Sombra adaptada */
+  box-shadow: 0 0.7em 1.5em -0.5em rgba(20, 167, 62, 0.55);
+
+  transition: box-shadow 180ms ease, transform 120ms ease;
 }
+
+.primary-button:hover:not(:disabled) {
+  box-shadow: 0 0.5em 1.5em -0.5em rgba(20, 167, 62, 0.55);
+  transform: translateY(-2px);
+}
+
+.primary-button:active:not(:disabled) {
+  box-shadow: 0 0.3em 1em -0.5em rgba(20, 167, 62, 0.55);
+  transform: translateY(0);
+}
+
+.primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+
 
 .secondary-button {
   background: rgba(255, 255, 255, 0.1);
@@ -169,10 +262,25 @@ body {
 
 .results-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
 }
+
+.logo-sponsors-image {
+  display: block;       /* permite usar margin auto */
+  margin: 3em auto;     /* centra horizontalmente */
+  width: 40%;
+  height: auto;
+}
+
+.results-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
 
 .results-list {
   display: flex;
