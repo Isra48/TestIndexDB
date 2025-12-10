@@ -59,6 +59,21 @@ function HomePage() {
     };
   }, []);
 
+ useEffect(() => {
+      const interval = setInterval(() => {
+        setIsAnimating(true);
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 2000); // Duración de cada animación cíclica
+      }, 3000); // Intervalo entre repeticiones
+  
+      return () => clearInterval(interval);
+    }, []);
+
+
+
+
+
   const categories = useMemo(() => Array.from(new Set(winners.map((winner) => winner.gift.category))), [winners]);
 
   const prizesForCategory = useMemo(() => {
@@ -129,9 +144,10 @@ function HomePage() {
           <img
             src="/title.png"
             alt="Esfera"
-            className={`esfera-image animate__animated${isAnimating ? ' animate__swing' : ''}`}
+            className={`esfera-image animate__animated${isAnimating ? ' animate__swing' : ''
+              }`}
             style={{ '--animate-duration': '2s' } as CSSProperties}
-            onAnimationEnd={() => setIsAnimating(false)}
+          
           />
           {/*<h2 className="panel-title">Filtra y encuentra los ganadores</h2> */}
           <label className="form-field">
@@ -183,7 +199,7 @@ function HomePage() {
 
         <div className="results-panel">
           <div className="results-header">
-        
+
             <div className="results-title-row">
               <h1>Ganadores:</h1>
               <span className="badge">{filteredWinners.length}</span>
@@ -214,13 +230,13 @@ function HomePage() {
               ))}
           </div>
         </div>
-        
+
       </section>
-       <img
-              src="/logos.png"
-              alt="logo sponsors"
-              className="logo-sponsors-image"
-            />
+      <img
+        src="/logos.png"
+        alt="logo sponsors"
+        className="logo-sponsors-image"
+      />
 
       <button
         type="button"
