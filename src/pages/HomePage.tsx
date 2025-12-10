@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { Gift, Winner } from '../types';
 import { readLastSavedAt, readWinners } from '../utils/indexedDb';
 
@@ -12,6 +12,7 @@ function HomePage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | undefined>();
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(true);
   const backgroundAudioRef = useRef<HTMLAudioElement | null>(null);
   const winnerAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -83,6 +84,7 @@ function HomePage() {
 
     setIsSearching(true);
     setHasSearched(false);
+    setIsAnimating(true);
 
     if (winnerAudioRef.current) {
       winnerAudioRef.current.currentTime = 0;
@@ -124,10 +126,12 @@ function HomePage() {
     <div className="home-page">
       <section className="hero-card">
         <div className="filter-panel">
-            <img
+          <img
             src="/title.png"
             alt="Esfera"
-            className="esfera-image"
+            className={`esfera-image animate__animated${isAnimating ? ' animate__swing' : ''}`}
+            style={{ '--animate-duration': '2s' } as CSSProperties}
+            onAnimationEnd={() => setIsAnimating(false)}
           />
           {/*<h2 className="panel-title">Filtra y encuentra los ganadores</h2> */}
           <label className="form-field">
