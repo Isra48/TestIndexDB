@@ -7,7 +7,7 @@ function AdminLayout() {
   return (
     <>
       <header className="app-header">
-        <div className="logo-text">Rifa corporativa</div>
+        <div className="logo-text">Tombola Digital 2025</div>
         <nav className="nav-bar">
           <Link to="/">Inicio</Link>
           <Link to="/Admin">Administración</Link>
