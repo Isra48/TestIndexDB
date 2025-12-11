@@ -76,13 +76,19 @@ function HomePage() {
 
   const categories = useMemo(() => Array.from(new Set(winners.map((winner) => winner.gift.category))), [winners]);
 
-  const prizesForCategory = useMemo(() => {
-    if (!selectedCategory) return [] as Gift[];
-    return winners
-      .filter((winner) => winner.gift.category === selectedCategory)
-      .map((winner) => winner.gift)
-      .filter((gift, index, arr) => arr.findIndex((item) => item.prize === gift.prize) === index);
-  }, [selectedCategory, winners]);
+ const prizesForCategory = useMemo(() => {
+  if (!selectedCategory) return [] as Gift[];
+
+  const uniqueGifts = winners
+    .filter((winner) => winner.gift.category === selectedCategory)
+    .map((winner) => winner.gift)
+    // quitar duplicados por nombre de premio
+    .filter((gift, index, arr) => arr.findIndex((item) => item.prize === gift.prize) === index);
+
+  // ORDENAR DE MENOR A MAYOR SEGÚN COSTO
+  return uniqueGifts.sort((a, b) => Number(a.cost) - Number(b.cost));
+}, [selectedCategory, winners]);
+
 
   const filteredWinners = useMemo(() => {
     if (!hasSearched) return [] as Winner[];
